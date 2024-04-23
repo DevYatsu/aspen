@@ -1,6 +1,6 @@
 use dialoguer::{theme::ColorfulTheme, Select};
 use logos::Logos;
-use std::fs;
+use std::{fs, time::Instant};
 mod lexer;
 
 fn main() {
@@ -18,7 +18,12 @@ fn main() {
     let content = fs::read_to_string(&format!("./aspen/{}", names[choice])).unwrap();
     let mut lex = lexer::Token::lexer(&content);
 
-    while let Some(token) = lex.next() {
-        println!("{:?}", token)
+    let start = Instant::now();
+    while let Some(_token) = lex.next() {
+        
     }
+    let time_taken = start.elapsed().as_millis();
+
+    println!("Content length: {}", content.len());
+    println!("Lexing took {} ms!", time_taken);
 }
