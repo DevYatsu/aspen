@@ -1,0 +1,15 @@
+@my_func arg1, arg2, arg3, ...others { 
+    { [arg1, arg2, arg3], ...others }
+}
+
+@add num1, ...numbers {
+    num1.add_all(numbers)
+}
+
+@multiply result, ...args {
+    for val -> args {
+        result = result * val
+    } 
+
+    result
+}

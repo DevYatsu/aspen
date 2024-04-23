@@ -1,0 +1,8 @@
+import "test"
+
+let x "test"
+let s "hello"..x.."!"
+let int 123_456
+let float 123_456.780e-3
+let immutable_arr [ 1, 2, 3 ]
+let mutable_arr { 1, 2, 3, 4 }
