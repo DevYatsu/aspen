@@ -40,6 +40,8 @@ fn main() -> Result<(), AspenError> {
         }
     }
 
+    println!("stmts: {:?}", statements);
+
     let time_taken = start.elapsed().as_millis();
 
     println!("Content length: {}", content.len());

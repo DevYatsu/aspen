@@ -1,15 +1,15 @@
 use super::{
     error::{AspenError, AspenResult},
+    expr::parse_expr,
     utils::{expect_space, next_while_space},
-    value::{parse_value, Value},
-    Statement,
+    Expr, Statement,
 };
 use crate::lexer::{AspenLexer, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Var<'a> {
     pub name: &'a str,
-    pub value: Value<'a>,
+    pub value: Expr<'a>,
 }
 
 /// Parses an variable declaration.
@@ -21,15 +21,11 @@ pub fn parse_var_stmt<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Statement<'
 
     let name = match token {
         Token::Identifier(name) => name,
-        _ => {
-            return Err(AspenError::ExpectedString(
-                "Expected an import value".to_owned(),
-            ))
-        }
+        _ => return Err(AspenError::Expected("an import value".to_owned())),
     };
 
     expect_space(lexer)?;
-    let value = parse_value(lexer)?;
+    let value = parse_expr(lexer)?;
 
     Ok(Var { name, value }.into())
 }

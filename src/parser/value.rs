@@ -1,10 +1,9 @@
 use rug::{Float, Integer};
 
-use crate::lexer::{AspenLexer, Token};
+use crate::lexer::Token;
 
 use super::{
     error::{AspenError, AspenResult},
-    utils::next_while_space,
     Expr,
 };
 
@@ -18,20 +17,14 @@ pub enum Value<'a> {
 
 /// Parses a value.
 ///
-/// **NOTE: We assume the next token is a value!**
-pub fn parse_value<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Value<'s>> {
-    let token = next_while_space(lexer)?;
-
+/// **NOTE: We assume the current token is a value!**
+pub fn parse_value<'s>(token: Token<'s>) -> AspenResult<Value<'s>> {
     let value = match token {
         Token::Bool(b) => b.into(),
         Token::String(s) => s.into(),
         Token::Int(i) => i.into(),
         Token::Float(f) => f.into(),
-        _ => {
-            return Err(AspenError::ExpectedString(
-                "Expected an import value".to_owned(),
-            ))
-        }
+        _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
     };
 
     Ok(value)

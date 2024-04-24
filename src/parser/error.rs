@@ -9,8 +9,8 @@ pub enum AspenError {
     IoError(std::io::Error),
     Lexing(LexingError),
 
-    ExpectedString(String),
     ExpectedSpace,
+    Expected(String),
 
     Eof,
 }
@@ -21,7 +21,7 @@ impl fmt::Display for AspenError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AspenError::IoError(e) => e.fmt(f),
-            AspenError::ExpectedString(s) => write!(f, "{}", s),
+            AspenError::Expected(s) => write!(f, "Expected {}", s),
 
             AspenError::Eof => write!(f, "Unexpected end of input!"),
             AspenError::Lexing(e) => e.fmt(f),

@@ -19,9 +19,7 @@ pub fn parse_import_stmt<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Statemen
 
     match token {
         Token::String(name) => Ok(Import { name }.into()),
-        _ => Err(AspenError::ExpectedString(
-            "Expected an import value".to_owned(),
-        )),
+        _ => Err(AspenError::Expected("an import value".to_owned())),
     }
 }
 
