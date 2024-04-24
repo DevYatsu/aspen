@@ -1,14 +1,17 @@
-use logos::Logos;
+use std::fmt::Display;
+
+use logos::{Lexer, Logos};
 use rug::{Complete, Float, Integer};
 
-#[derive(Logos, Debug, PartialEq)]
+pub type AspenLexer<'s> = Lexer<'s, Token<'s>>;
+
+#[derive(Logos, Debug, PartialEq, Clone)]
+#[logos(error = LexingError)]
 pub enum Token<'a> {
     #[token("\n")]
     Newline,
-    #[token(" ")]
-    Space,
-    #[token("\t")]
-    Carriage,
+    #[regex(r"(\t| )+")]
+    Spaces,
     #[token(",")]
     Comma,
 
@@ -70,4 +73,13 @@ pub enum Token<'a> {
 
     #[regex(r#"\+|-|\*\*|\*|\\|%"#, |lex| lex.slice())]
     BinaryOperator(&'a str),
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct LexingError();
+
+impl Display for LexingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Failed to lex: Unexpected token!")
+    }
 }

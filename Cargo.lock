@@ -3,6 +3,15 @@
 version = 3
 
 [[package]]
+name = "aspen"
+version = "0.1.0"
+dependencies = [
+ "dialoguer",
+ "logos",
+ "rug",
+]
+
+[[package]]
 name = "az"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -194,15 +203,6 @@ dependencies = [
  "libc",
  "linux-raw-sys",
  "windows-sys",
-]
-
-[[package]]
-name = "scripting_lang"
-version = "0.1.0"
-dependencies = [
- "dialoguer",
- "logos",
- "rug",
 ]
 
 [[package]]
