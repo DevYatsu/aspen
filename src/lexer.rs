@@ -16,14 +16,14 @@ pub enum Token<'a> {
     Comma,
 
     #[token("{")]
-    OpenBracket,
+    OpenBrace,
     #[token("}")]
-    CloseBracket,
+    CloseBrace,
 
     #[token("[")]
-    OpenBrace,
+    OpenBracket,
     #[token("]")]
-    CloseBrace,
+    CloseBracket,
 
     #[token("(")]
     OpenParen,
