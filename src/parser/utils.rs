@@ -1,11 +1,16 @@
-use crate::parser::{AspenParser, Token};
-
 use super::error::{AspenError, AspenResult};
+use crate::parser::{AspenParser, Comment, Container, Statement, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenOption<'a, T> {
     Some(T),
     Token(Token<'a>),
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Block<'a> {
+    statements: Container<Statement<'a>>,
+    comments: Container<Comment<'a>>,
 }
 
 pub fn expect_space<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
@@ -56,6 +61,22 @@ pub fn next_jump_multispace<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Tok
             Token::Newline | Token::Spaces => (),
             _ => return Ok(token),
         }
+    }
+}
+
+impl<'a> Block<'a> {
+    pub fn new(statements: Container<Statement<'a>>, comments: Container<Comment<'a>>) -> Self {
+        Self {
+            statements,
+            comments,
+        }
+    }
+
+    pub fn comments(&self) -> Container<Comment<'a>> {
+        self.comments.clone()
+    }
+    pub fn statements(&self) -> Container<Statement<'a>> {
+        self.statements.clone()
     }
 }
 

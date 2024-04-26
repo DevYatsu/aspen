@@ -44,7 +44,7 @@ pub fn parse_expr_or_return_token<'s>(
 /// Parses an array.
 ///
 /// **NOTE: We assume "[" was already consumed!**
-pub fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
+fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
     let mut arr = Vec::new();
     let mut awaits_comma = false;
 
@@ -75,7 +75,7 @@ pub fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr
 /// Parses an object.
 ///
 /// **NOTE: We assume "{" was already consumed!**
-pub fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, Expr<'s>>> {
+fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, Expr<'s>>> {
     let mut hash = HashMap::new();
     let mut key = None;
     let mut value = None;
