@@ -1,5 +1,5 @@
-@my_func arg1, arg2, arg3, ...others { 
-    { [arg1, arg2, arg3], ...others }
+@my_func arg1, ...others {
+    { values! [arg1, arg2, arg3, ...others] }
 }
 
 @add num1, ...numbers {
@@ -9,7 +9,7 @@
 @multiply result, ...args {
     for val -> args {
         result = result * val
-    } 
+    }
 
     result
 }

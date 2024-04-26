@@ -1,6 +1,6 @@
 use hashbrown::HashMap;
 
-use crate::lexer::{AspenLexer, Token};
+use crate::parser::{AspenParser, Token};
 
 use super::{
     error::{AspenError, AspenResult},
@@ -11,12 +11,12 @@ use super::{
 
 /// Parses an expression.
 ///
-pub fn parse_expr<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Expr<'s>> {
-    let token = next_jump_multispace(lexer)?;
+pub fn parse_expr<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Expr<'s>> {
+    let token = next_jump_multispace(parser)?;
 
     let expr = match token {
-        Token::OpenBracket => parse_array(lexer)?.into(),
-        Token::OpenBrace => parse_obj(lexer)?.into(),
+        Token::OpenBracket => parse_array(parser)?.into(),
+        Token::OpenBrace => parse_obj(parser)?.into(),
         Token::Identifier(ident) => ident.into(),
         token => parse_value(token)?.into(),
     };
@@ -27,13 +27,13 @@ pub fn parse_expr<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Expr<'s>> {
 /// Parses an expression or returns the found token.
 ///
 pub fn parse_expr_or_return_token<'s>(
-    lexer: &mut AspenLexer<'s>,
+    parser: &mut AspenParser<'s>,
 ) -> AspenResult<TokenOption<'s, Expr<'s>>> {
-    let token = next_jump_multispace(lexer)?;
+    let token = next_jump_multispace(parser)?;
 
     let expr_or_token: Expr<'s> = match token {
-        Token::OpenBracket => parse_array(lexer)?.into(),
-        Token::OpenBrace => parse_obj(lexer)?.into(),
+        Token::OpenBracket => parse_array(parser)?.into(),
+        Token::OpenBrace => parse_obj(parser)?.into(),
         Token::Identifier(ident) => ident.into(),
         token => return Ok(parse_value_or_return_token(token)?.into()),
     };
@@ -44,12 +44,12 @@ pub fn parse_expr_or_return_token<'s>(
 /// Parses an array.
 ///
 /// **NOTE: We assume "[" was already consumed!**
-pub fn parse_array<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
+pub fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
     let mut arr = Vec::new();
     let mut awaits_comma = false;
 
     loop {
-        let expr_or_token = parse_expr_or_return_token(lexer)?;
+        let expr_or_token = parse_expr_or_return_token(parser)?;
 
         match expr_or_token {
             TokenOption::Some(expr) if !awaits_comma => {
@@ -75,13 +75,13 @@ pub fn parse_array<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Box<Expr<'
 /// Parses an object.
 ///
 /// **NOTE: We assume "{" was already consumed!**
-pub fn parse_obj<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<HashMap<&'s str, Expr<'s>>> {
+pub fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, Expr<'s>>> {
     let mut hash = HashMap::new();
     let mut key = None;
     let mut value = None;
 
     loop {
-        let token = next_jump_multispace(lexer)?;
+        let token = next_jump_multispace(parser)?;
 
         match token {
             // if value.is_some() then key is too!!!
@@ -99,11 +99,11 @@ pub fn parse_obj<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<HashMap<&'s str,
                 hash.insert(key.take().unwrap(), value.take().unwrap());
             }
             Token::OpenBrace if key.is_some() => {
-                let object = parse_obj(lexer)?;
+                let object = parse_obj(parser)?;
                 value = Some(object.into());
             }
             Token::OpenBracket if key.is_some() => {
-                let sub_array = parse_array(lexer)?;
+                let sub_array = parse_array(parser)?;
                 value = Some(sub_array.into());
             }
             Token::Identifier(ident) if key.is_some() => {

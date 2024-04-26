@@ -21,17 +21,16 @@ fn main() -> Result<(), AspenError> {
         .unwrap();
 
     let content = fs::read_to_string(&format!("./aspen/{}", names[choice])).unwrap();
-    let mut lexer = Token::lexer(&content);
+    let mut parser: parser::AspenParser<'_> = Token::lexer(&content).into();
 
     let start = Instant::now();
-    let result = parse_aspen(&mut lexer)?;
+    parse_aspen(&mut parser)?;
 
-    println!("stmts: {:?}", result);
-
-    let time_taken = start.elapsed().as_millis();
-
+    println!("stmts: {:?}", parser.statements());
+    println!("comments: {:?}", parser.comments());
     println!("Content length: {}", content.len());
-    println!("Lexing took {} ms!", time_taken);
+
+    println!("Lexing took {} ms!", start.elapsed().as_millis());
 
     Ok(())
 }

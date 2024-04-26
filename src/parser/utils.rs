@@ -1,14 +1,15 @@
-use crate::lexer::{AspenLexer, Token};
+use crate::parser::{AspenParser, Token};
 
 use super::error::{AspenError, AspenResult};
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenOption<'a, T> {
     Some(T),
     Token(Token<'a>),
 }
 
-pub fn expect_space<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<()> {
-    let token = next_token(lexer)?;
+pub fn expect_space<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
+    let token = next_token(parser)?;
 
     match token {
         Token::Newline | Token::Spaces => (),
@@ -18,13 +19,12 @@ pub fn expect_space<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<()> {
     Ok(())
 }
 
-pub fn expect_newline<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<()> {
-    let token = next_token(lexer)?;
-    println!("{:?}", token);
+pub fn expect_newline<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
+    let token = next_token(parser)?;
 
     match token {
         Token::Spaces => {
-            let next_token = next_token(lexer)?;
+            let next_token = next_token(parser)?;
 
             if next_token != Token::Newline {
                 return Err(AspenError::ExpectedNewline);
@@ -37,8 +37,8 @@ pub fn expect_newline<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<()> {
     Ok(())
 }
 
-pub fn next_token<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Token<'s>> {
-    match lexer.next() {
+pub fn next_token<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Token<'s>> {
+    match parser.lexer.next() {
         Some(result_token) => {
             let token = result_token?;
 
@@ -48,9 +48,9 @@ pub fn next_token<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Token<'s>> {
     }
 }
 
-pub fn next_jump_multispace<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Token<'s>> {
+pub fn next_jump_multispace<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Token<'s>> {
     loop {
-        let token = next_token(lexer)?;
+        let token = next_token(parser)?;
 
         match token {
             Token::Newline | Token::Spaces => (),

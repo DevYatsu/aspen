@@ -1,6 +1,6 @@
 use self::{comment::Comment, error::AspenResult, import::Import, value::Value, var::Var};
 use crate::{
-    lexer::Token,
+    lexer::{AspenLexer, Token},
     parser::{import::parse_import_stmt, utils::expect_newline, var::parse_var_stmt},
 };
 use hashbrown::HashMap;
@@ -14,8 +14,6 @@ mod macros;
 pub mod utils;
 pub mod value;
 pub mod var;
-
-pub type AspenLexer<'s> = Lexer<'s, Token<'s>>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement<'a> {
@@ -34,29 +32,37 @@ pub enum Expr<'a> {
     Id(&'a str),
 }
 
-pub fn parse_aspen<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Statement<'s>>> {
-    let mut statements = vec![];
-    let mut comments = vec![];
+pub type Container<T> = Box<Vec<T>>;
 
-    while let Some(result_token) = lexer.next() {
+#[derive(Debug, Clone)]
+pub struct AspenParser<'s> {
+    pub lexer: AspenLexer<'s>,
+    comments: Container<Comment<'s>>,
+    statements: Container<Statement<'s>>,
+}
+
+pub fn parse_aspen<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
+    while let Some(result_token) = parser.lexer.next() {
         let token = result_token?;
 
         match token {
             Token::Import => {
-                statements.push(parse_import_stmt(lexer)?);
-                expect_newline(lexer)?;
+                let stmt = parse_import_stmt(parser)?;
+                parser.statements.push(stmt);
+                expect_newline(parser)?;
             }
             Token::Let => {
-                statements.push(parse_var_stmt(lexer)?);
-                expect_newline(lexer)?;
+                let stmt = parse_var_stmt(parser)?;
+                parser.statements.push(stmt);
+                expect_newline(parser)?;
             }
             Token::LineComment(value)
             | Token::BlockComment(value)
             | Token::MultiLineComment(value) => {
-                let start = lexer.span().start;
-                let end = lexer.span().end;
+                let start = parser.lexer.span().start;
+                let end = parser.lexer.span().end;
 
-                comments.push(Comment::new(value, start, end))
+                parser.comments.push(Comment::new(value, start, end))
             }
             _ => {
                 //todo!
@@ -64,5 +70,27 @@ pub fn parse_aspen<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Statement<
         }
     }
 
-    Ok(statements)
+    Ok(())
+}
+
+impl<'a> AspenParser<'a> {
+    fn new(lexer: Lexer<'a, Token<'a>>) -> Self {
+        Self {
+            lexer,
+            comments: Box::new(vec![]),
+            statements: Box::new(vec![]),
+        }
+    }
+    pub fn statements(&self) -> Container<Statement<'a>> {
+        self.statements.clone()
+    }
+    pub fn comments(&self) -> Container<Comment<'a>> {
+        self.comments.clone()
+    }
+}
+
+impl<'a> From<Lexer<'a, Token<'a>>> for AspenParser<'a> {
+    fn from(value: Lexer<'a, Token<'a>>) -> Self {
+        Self::new(value)
+    }
 }
