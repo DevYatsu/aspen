@@ -1,21 +1,18 @@
 use hashbrown::HashMap;
 
-use crate::{
-    impl_from_for,
-    lexer::{AspenLexer, Token},
-};
+use crate::lexer::{AspenLexer, Token};
 
 use super::{
     error::{AspenError, AspenResult},
-    utils::next_while_space,
-    value::parse_value,
+    utils::{next_jump_multispace, TokenOption},
+    value::{parse_value, parse_value_or_return_token, Value},
     Expr,
 };
 
 /// Parses an expression.
 ///
 pub fn parse_expr<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Expr<'s>> {
-    let token = next_while_space(lexer)?;
+    let token = next_jump_multispace(lexer)?;
 
     let expr = match token {
         Token::OpenBracket => parse_array(lexer)?.into(),
@@ -27,22 +24,18 @@ pub fn parse_expr<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Expr<'s>> {
     Ok(expr)
 }
 
-pub enum ExprOrToken<'a> {
-    Expr(Expr<'a>),
-    Token(Token<'a>),
-}
-impl_from_for!(Expr, ExprOrToken);
-
-/// Parses an expression or returns the found token
+/// Parses an expression or returns the found token.
 ///
-pub fn parse_expr_or_return_token<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<ExprOrToken<'s>> {
-    let token = next_while_space(lexer)?;
+pub fn parse_expr_or_return_token<'s>(
+    lexer: &mut AspenLexer<'s>,
+) -> AspenResult<TokenOption<'s, Expr<'s>>> {
+    let token = next_jump_multispace(lexer)?;
 
     let expr_or_token: Expr<'s> = match token {
         Token::OpenBracket => parse_array(lexer)?.into(),
         Token::OpenBrace => parse_obj(lexer)?.into(),
         Token::Identifier(ident) => ident.into(),
-        token => parse_value(token)?.into(),
+        token => return Ok(parse_value_or_return_token(token)?.into()),
     };
 
     Ok(expr_or_token.into())
@@ -60,11 +53,11 @@ pub fn parse_array<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Box<Expr<'
         let expr_or_token = parse_expr_or_return_token(lexer)?;
 
         match expr_or_token {
-            ExprOrToken::Expr(expr) if !awaits_comma => {
+            TokenOption::Some(expr) if !awaits_comma => {
                 arr.push(Box::new(expr.into()));
                 awaits_value = false;
             }
-            ExprOrToken::Token(token) => match token {
+            TokenOption::Token(token) => match token {
                 Token::CloseBracket => return Ok(arr),
                 Token::Comma if awaits_comma => awaits_value = true,
                 _ if awaits_value => {
@@ -102,7 +95,7 @@ pub fn parse_obj<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<HashMap<&'s str,
     let mut value = None;
 
     loop {
-        let token = next_while_space(lexer)?;
+        let token = next_jump_multispace(lexer)?;
 
         match token {
             // if value.is_some() then key is too!!!
@@ -135,6 +128,21 @@ pub fn parse_obj<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<HashMap<&'s str,
             }
             _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
         };
+    }
+}
+
+impl<'a> From<Expr<'a>> for TokenOption<'a, Expr<'a>> {
+    fn from(value: Expr<'a>) -> TokenOption<'a, Expr<'a>> {
+        TokenOption::Some(value)
+    }
+}
+
+impl<'a> From<TokenOption<'a, Value<'a>>> for TokenOption<'a, Expr<'a>> {
+    fn from(value: TokenOption<'a, Value<'a>>) -> TokenOption<'a, Expr<'a>> {
+        match value {
+            TokenOption::Some(v) => TokenOption::Some(v.into()),
+            TokenOption::Token(v) => TokenOption::Token(v),
+        }
     }
 }
 

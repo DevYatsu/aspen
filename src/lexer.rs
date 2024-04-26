@@ -15,6 +15,13 @@ pub enum Token<'a> {
     #[token(",")]
     Comma,
 
+    #[regex(r"//[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
+    LineComment(&'a str),
+    #[regex(r"///[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
+    BlockComment(&'a str),
+    #[regex(r"/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/", |lex| let raw=lex.slice();&raw[2..=raw.len()-2])]
+    MultiLineComment(&'a str),
+
     #[token("{")]
     OpenBrace,
     #[token("}")]

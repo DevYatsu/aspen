@@ -1,7 +1,7 @@
 use super::{
     error::{AspenError, AspenResult},
     expr::parse_expr,
-    utils::{expect_space, next_while_space},
+    utils::{expect_space, next_jump_multispace},
     Expr, Statement,
 };
 use crate::lexer::{AspenLexer, Token};
@@ -17,7 +17,7 @@ pub struct Var<'a> {
 /// **NOTE: We assume "let" is already consumed by the lexer!**
 pub fn parse_var_stmt<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Statement<'s>> {
     expect_space(lexer)?;
-    let token = next_while_space(lexer)?;
+    let token = next_jump_multispace(lexer)?;
 
     let name = match token {
         Token::Identifier(name) => name,

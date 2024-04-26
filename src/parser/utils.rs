@@ -2,6 +2,11 @@ use crate::lexer::{AspenLexer, Token};
 
 use super::error::{AspenError, AspenResult};
 
+pub enum TokenOption<'a, T> {
+    Some(T),
+    Token(Token<'a>),
+}
+
 pub fn expect_space<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<()> {
     let token = next_token(lexer)?;
 
@@ -15,10 +20,13 @@ pub fn expect_space<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<()> {
 
 pub fn expect_newline<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<()> {
     let token = next_token(lexer)?;
+    println!("{:?}", token);
 
     match token {
         Token::Spaces => {
-            if next_token(lexer)? != Token::Newline {
+            let next_token = next_token(lexer)?;
+
+            if next_token != Token::Newline {
                 return Err(AspenError::ExpectedNewline);
             }
         }
@@ -40,7 +48,7 @@ pub fn next_token<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Token<'s>> {
     }
 }
 
-pub fn next_while_space<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Token<'s>> {
+pub fn next_jump_multispace<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Token<'s>> {
     loop {
         let token = next_token(lexer)?;
 
@@ -48,5 +56,11 @@ pub fn next_while_space<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Token<'s>
             Token::Newline | Token::Spaces => (),
             _ => return Ok(token),
         }
+    }
+}
+
+impl<'a, T> From<Token<'a>> for TokenOption<'a, T> {
+    fn from(value: Token<'a>) -> TokenOption<'a, T> {
+        TokenOption::Token(value)
     }
 }

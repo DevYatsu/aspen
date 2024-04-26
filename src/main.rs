@@ -1,12 +1,9 @@
+use crate::lexer::Token;
+use crate::parser::parse_aspen;
 use dialoguer::{theme::ColorfulTheme, Select};
 use logos::Logos;
 use parser::error::AspenError;
 use std::{fs, time::Instant};
-
-use crate::{
-    lexer::Token,
-    parser::{import::parse_import_stmt, utils::expect_newline, var::parse_var_stmt},
-};
 
 mod lexer;
 mod parser;
@@ -26,27 +23,10 @@ fn main() -> Result<(), AspenError> {
     let content = fs::read_to_string(&format!("./aspen/{}", names[choice])).unwrap();
     let mut lexer = Token::lexer(&content);
 
-    let mut statements = vec![];
     let start = Instant::now();
-    while let Some(result_token) = lexer.next() {
-        let token = result_token?;
+    let result = parse_aspen(&mut lexer)?;
 
-        match token {
-            Token::Import => {
-                statements.push(parse_import_stmt(&mut lexer)?);
-                expect_newline(&mut lexer)?;
-            }
-            Token::Let => {
-                statements.push(parse_var_stmt(&mut lexer)?);
-                expect_newline(&mut lexer)?;
-            }
-            _ => {
-                //todo!
-            }
-        }
-    }
-
-    println!("stmts: {:?}", statements);
+    println!("stmts: {:?}", result);
 
     let time_taken = start.elapsed().as_millis();
 

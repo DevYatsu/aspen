@@ -4,6 +4,7 @@ use crate::lexer::Token;
 
 use super::{
     error::{AspenError, AspenResult},
+    utils::TokenOption,
     Expr,
 };
 
@@ -30,7 +31,30 @@ pub fn parse_value<'s>(token: Token<'s>) -> AspenResult<Value<'s>> {
     Ok(value)
 }
 
+/// Parses a value or returns the found token.
+///
+/// **NOTE: We assume the current token is a value!**
+pub fn parse_value_or_return_token<'s>(
+    token: Token<'s>,
+) -> AspenResult<TokenOption<'s, Value<'s>>> {
+    let value: Value<'_> = match token {
+        Token::Bool(b) => b.into(),
+        Token::String(s) => s.into(),
+        Token::Int(i) => i.into(),
+        Token::Float(f) => f.into(),
+        _ => return Ok(token.into()),
+    };
+
+    Ok(value.into())
+}
+
 crate::impl_from_for!(Value, Expr);
+
+impl<'a> From<Value<'a>> for TokenOption<'a, Value<'a>> {
+    fn from(value: Value<'a>) -> TokenOption<'a, Value<'a>> {
+        TokenOption::Some(value)
+    }
+}
 
 impl<'a> Into<Value<'a>> for bool {
     fn into(self) -> Value<'a> {
