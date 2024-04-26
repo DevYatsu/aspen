@@ -40,6 +40,9 @@ pub enum Token<'a> {
     #[token("->")]
     In,
 
+    #[token("nil")]
+    Nil,
+
     #[token("import")]
     Import,
     #[token("let")]
