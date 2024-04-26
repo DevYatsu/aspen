@@ -10,6 +10,7 @@ pub enum AspenError {
     Lexing(LexingError),
 
     ExpectedSpace,
+    ExpectedNewline,
     Expected(String),
 
     Eof,
@@ -21,11 +22,13 @@ impl fmt::Display for AspenError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AspenError::IoError(e) => e.fmt(f),
-            AspenError::Expected(s) => write!(f, "Expected {}", s),
+            AspenError::Lexing(e) => e.fmt(f),
 
             AspenError::Eof => write!(f, "Unexpected end of input!"),
-            AspenError::Lexing(e) => e.fmt(f),
-            AspenError::ExpectedSpace => write!(f, "Expected a space or newline character"),
+
+            AspenError::Expected(s) => write!(f, "Expected {}", s),
+            AspenError::ExpectedSpace => write!(f, "Expected a space character"),
+            AspenError::ExpectedNewline => write!(f, "Expected a newline character"),
         }
     }
 }

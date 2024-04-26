@@ -1,6 +1,9 @@
 use hashbrown::HashMap;
 
-use crate::lexer::{AspenLexer, Token};
+use crate::{
+    impl_from_for,
+    lexer::{AspenLexer, Token},
+};
 
 use super::{
     error::{AspenError, AspenResult},
@@ -24,6 +27,27 @@ pub fn parse_expr<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Expr<'s>> {
     Ok(expr)
 }
 
+pub enum ExprOrToken<'a> {
+    Expr(Expr<'a>),
+    Token(Token<'a>),
+}
+impl_from_for!(Expr, ExprOrToken);
+
+/// Parses an expression or returns the found token
+///
+pub fn parse_expr_or_return_token<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<ExprOrToken<'s>> {
+    let token = next_while_space(lexer)?;
+
+    let expr_or_token: Expr<'s> = match token {
+        Token::OpenBracket => parse_array(lexer)?.into(),
+        Token::OpenBrace => parse_obj(lexer)?.into(),
+        Token::Identifier(ident) => ident.into(),
+        token => parse_value(token)?.into(),
+    };
+
+    Ok(expr_or_token.into())
+}
+
 /// Parses an array.
 ///
 /// **NOTE: We assume "[" was already consumed!**
@@ -33,30 +57,37 @@ pub fn parse_array<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Box<Expr<'
     let mut awaits_value = true;
 
     loop {
-        let token = next_while_space(lexer)?;
+        let expr_or_token = parse_expr_or_return_token(lexer)?;
 
-        match token {
-            Token::CloseBracket => return Ok(arr),
-            Token::Comma if awaits_comma => awaits_value = true,
-            Token::OpenBrace if !awaits_comma => {
-                let object = parse_obj(lexer)?;
-                arr.push(Box::new(object.into()));
+        match expr_or_token {
+            ExprOrToken::Expr(expr) if !awaits_comma => {
+                arr.push(Box::new(expr.into()));
                 awaits_value = false;
             }
-            Token::OpenBracket if !awaits_comma => {
-                let sub_array = parse_array(lexer)?;
-                arr.push(Box::new(sub_array.into()));
-                awaits_value = false;
-            }
-            Token::Identifier(ident) => {
-                arr.push(Box::new(ident.into()));
-                awaits_value = false;
-            }
-            _ if awaits_value => {
-                arr.push(Box::new(parse_value(token)?.into()));
-                awaits_value = false;
-            }
+            ExprOrToken::Token(token) => match token {
+                Token::CloseBracket => return Ok(arr),
+                Token::Comma if awaits_comma => awaits_value = true,
+                _ if awaits_value => {
+                    arr.push(Box::new(parse_value(token)?.into()));
+                    awaits_value = false;
+                }
+                _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
+            },
             _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
+            // Token::OpenBrace if !awaits_comma => {
+            //     let object = parse_obj(lexer)?;
+            //     arr.push(Box::new(object.into()));
+            //     awaits_value = false;
+            // }
+            // Token::OpenBracket if !awaits_comma => {
+            //     let sub_array = parse_array(lexer)?;
+            //     arr.push(Box::new(sub_array.into()));
+            //     awaits_value = false;
+            // }
+            // Token::Identifier(ident) => {
+            //     arr.push(Box::new(ident.into()));
+            //     awaits_value = false;
+            // }
         };
         awaits_comma = !awaits_value;
     }

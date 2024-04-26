@@ -9,6 +9,7 @@ use crate::lexer::{AspenLexer, Token};
 pub struct Import<'a> {
     pub name: &'a str,
 }
+crate::impl_from_for!(Import, Statement);
 
 /// Parses an import statement.
 ///
@@ -22,5 +23,3 @@ pub fn parse_import_stmt<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Statemen
         _ => Err(AspenError::Expected("an import value".to_owned())),
     }
 }
-
-crate::impl_from_for!(Import, Statement);

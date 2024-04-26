@@ -5,7 +5,7 @@ use std::{fs, time::Instant};
 
 use crate::{
     lexer::Token,
-    parser::{import::parse_import_stmt, var::parse_var_stmt},
+    parser::{import::parse_import_stmt, utils::expect_newline, var::parse_var_stmt},
 };
 
 mod lexer;
@@ -32,8 +32,14 @@ fn main() -> Result<(), AspenError> {
         let token = result_token?;
 
         match token {
-            Token::Import => statements.push(parse_import_stmt(&mut lexer)?),
-            Token::Let => statements.push(parse_var_stmt(&mut lexer)?),
+            Token::Import => {
+                statements.push(parse_import_stmt(&mut lexer)?);
+                expect_newline(&mut lexer)?;
+            }
+            Token::Let => {
+                statements.push(parse_var_stmt(&mut lexer)?);
+                expect_newline(&mut lexer)?;
+            }
             _ => {
                 //todo!
             }
