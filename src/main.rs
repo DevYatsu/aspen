@@ -29,7 +29,6 @@ fn main() -> Result<(), AspenError> {
     println!("stmts: {:?}", parser.statements());
     println!("comments: {:?}", parser.comments());
     println!("Content length: {}", content.len());
-
     println!("Lexing took {} ms!", start.elapsed().as_millis());
 
     Ok(())
