@@ -36,7 +36,7 @@ pub enum Expr<'a> {
 
 pub fn parse_aspen<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Statement<'s>>> {
     let mut statements = vec![];
-    let mut directives = vec![];
+    let mut comments = vec![];
 
     while let Some(result_token) = lexer.next() {
         let token = result_token?;
@@ -56,7 +56,7 @@ pub fn parse_aspen<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Statement<
                 let start = lexer.span().start;
                 let end = lexer.span().end;
 
-                directives.push(Comment::new(value, start, end))
+                comments.push(Comment::new(value, start, end))
             }
             _ => {
                 //todo!
