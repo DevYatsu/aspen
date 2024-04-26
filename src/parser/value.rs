@@ -14,6 +14,7 @@ pub enum Value<'a> {
     Int(Integer),
     Float(Float),
     Bool(bool),
+    Nil,
 }
 
 /// Parses a value.
@@ -25,6 +26,7 @@ pub fn parse_value<'s>(token: Token<'s>) -> AspenResult<Value<'s>> {
         Token::String(s) => s.into(),
         Token::Int(i) => i.into(),
         Token::Float(f) => f.into(),
+        Token::Nil => Value::Nil,
         _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
     };
 
