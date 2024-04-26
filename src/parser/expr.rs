@@ -47,7 +47,6 @@ pub fn parse_expr_or_return_token<'s>(
 pub fn parse_array<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
     let mut arr = Vec::new();
     let mut awaits_comma = false;
-    let mut awaits_value = true;
 
     loop {
         let expr_or_token = parse_expr_or_return_token(lexer)?;
@@ -55,34 +54,21 @@ pub fn parse_array<'s>(lexer: &mut AspenLexer<'s>) -> AspenResult<Vec<Box<Expr<'
         match expr_or_token {
             TokenOption::Some(expr) if !awaits_comma => {
                 arr.push(Box::new(expr.into()));
-                awaits_value = false;
+                awaits_comma = true;
             }
             TokenOption::Token(token) => match token {
                 Token::CloseBracket => return Ok(arr),
-                Token::Comma if awaits_comma => awaits_value = true,
-                _ if awaits_value => {
-                    arr.push(Box::new(parse_value(token)?.into()));
-                    awaits_value = false;
+                Token::Comma if awaits_comma => awaits_comma = false,
+                _ if awaits_comma => {
+                    return Err(AspenError::Expected("a close bracket '}'".to_owned()))
                 }
-                _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
+                _ if !awaits_comma => {
+                    return Err(AspenError::Expected("a value <expr>".to_owned()))
+                }
+                _ => unreachable!("All cases are covered up there!"),
             },
-            _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
-            // Token::OpenBrace if !awaits_comma => {
-            //     let object = parse_obj(lexer)?;
-            //     arr.push(Box::new(object.into()));
-            //     awaits_value = false;
-            // }
-            // Token::OpenBracket if !awaits_comma => {
-            //     let sub_array = parse_array(lexer)?;
-            //     arr.push(Box::new(sub_array.into()));
-            //     awaits_value = false;
-            // }
-            // Token::Identifier(ident) => {
-            //     arr.push(Box::new(ident.into()));
-            //     awaits_value = false;
-            // }
+            _ => return Err(AspenError::Expected("a close bracket '}'".to_owned())),
         };
-        awaits_comma = !awaits_value;
     }
 }
 
