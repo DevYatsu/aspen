@@ -37,6 +37,8 @@ pub enum Expr<'a> {
     Object(HashMap<&'a str, Expr<'a>>),
 
     Id(&'a str),
+
+    SpeadId(&'a str),
 }
 
 pub type Container<T> = Box<Vec<T>>;

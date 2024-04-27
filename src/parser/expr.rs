@@ -33,7 +33,7 @@ impl<'a> Expr<'a> {
                 let next_token = next_token(parser)?;
 
                 match next_token {
-                    Token::Identifier(value) => value.into(),
+                    Token::Identifier(value) => Expr::SpeadId(value),
                     _ => {
                         return Err(AspenError::Expected(
                             "an identifier following the '...'".to_owned(),
@@ -62,7 +62,7 @@ impl<'a> Expr<'a> {
                 let next_token = next_token(parser)?;
 
                 match next_token {
-                    Token::Identifier(value) => value.into(),
+                    Token::Identifier(value) => Expr::SpeadId(value),
                     _ => {
                         return Err(AspenError::Expected(
                             "an identifier following the '...'".to_owned(),
@@ -149,25 +149,17 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, E
                 key = Some(ident);
                 value = Some(ident.into());
             }
-            Token::SpreadOperator if key.is_some() => {
-                let next_token = next_token(parser)?;
-
-                match next_token {
-                    Token::Identifier(ident) => value = Some(Expr::Id(ident)),
-                    _ => {
-                        return Err(AspenError::Expected(
-                            "an identifier following the '...'".to_owned(),
-                        ))
-                    }
-                }
-            }
+            Token::SpreadOperator if key.is_some() => return Err(AspenError::Expected(
+                "an object or an array: either do {..<spread_variable>} or [...<spread_variable>]"
+                    .to_owned(),
+            )),
             Token::SpreadOperator => {
                 let next_token = next_token(parser)?;
 
                 match next_token {
                     Token::Identifier(ident) => {
                         key = Some(ident);
-                        value = Some(Expr::Id(ident));
+                        value = Some(Expr::SpeadId(ident));
                     }
                     _ => {
                         return Err(AspenError::Expected(
