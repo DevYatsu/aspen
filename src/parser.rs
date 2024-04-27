@@ -28,11 +28,13 @@ pub enum Statement<'a> {
 
 crate::impl_from_for!(Expr, Statement);
 
+pub type Container<T> = Vec<Box<T>>;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'a> {
     Value(Value<'a>),
 
-    Array(Vec<Box<Expr<'a>>>),
+    Array(Container<Expr<'a>>),
 
     Object(HashMap<&'a str, Expr<'a>>),
 
@@ -41,12 +43,11 @@ pub enum Expr<'a> {
     SpeadId(&'a str),
 }
 
-pub type Container<T> = Box<Vec<T>>;
-
 #[derive(Debug, Clone)]
 pub struct AspenParser<'s> {
     pub lexer: AspenLexer<'s>,
     body: Block<'s>,
+    comments: Container<Comment<'s>>,
 }
 
 pub fn parse_aspen<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
@@ -64,8 +65,7 @@ pub fn parse_block<'s>(
     parser: &mut AspenParser<'s>,
     stop_on: Option<Token<'s>>,
 ) -> AspenResult<Block<'s>> {
-    let mut statements = Box::new(vec![]);
-    let mut comments = Box::new(vec![]);
+    let mut statements = vec![];
 
     while let Some(result_token) = parser.lexer.next() {
         let token = result_token?;
@@ -73,12 +73,12 @@ pub fn parse_block<'s>(
         match token {
             Token::Import => {
                 let stmt = Import::parse(parser)?;
-                statements.push(stmt);
+                statements.push(Box::new(stmt));
                 expect_newline(parser)?;
             }
             Token::Let => {
                 let stmt = Var::parse(parser)?;
-                statements.push(stmt);
+                statements.push(Box::new(stmt));
                 expect_newline(parser)?;
             }
             Token::LineComment(value)
@@ -87,15 +87,14 @@ pub fn parse_block<'s>(
                 let start = parser.lexer.span().start;
                 let end = parser.lexer.span().end;
 
-                comments.push(Comment::new(value, start, end))
+                parser.add_comment(Comment::new(value, start, end))
             }
             Token::Func(name) => {
                 let stmt = Func::parse(parser, name)?;
-                statements.push(stmt);
+                statements.push(Box::new(stmt));
             }
             _ if stop_on.is_some() && &token == stop_on.as_ref().unwrap() => {
-                println!("{:?}", statements);
-                return Ok(Block::new(statements, comments));
+                return Ok(Block::new(statements));
             }
             // Token::Identifier(id) => {
             //     if id == "print" {
@@ -114,7 +113,7 @@ pub fn parse_block<'s>(
             | Token::SpreadOperator
             | Token::String(_) => {
                 if let Ok(ex) = Expr::parse_with_token(parser, token) {
-                    statements.push(ex.into())
+                    statements.push(Box::new(ex.into()))
                 }
             }
             _ => {}
@@ -128,7 +127,7 @@ pub fn parse_block<'s>(
         )));
     }
 
-    Ok(Block::new(statements, comments))
+    Ok(Block::new(statements))
 }
 
 impl<'a> AspenParser<'a> {
@@ -136,16 +135,17 @@ impl<'a> AspenParser<'a> {
         Self {
             lexer,
             body: Block::default(),
+            comments: vec![],
         }
     }
     pub fn statements(&self) -> Container<Statement<'a>> {
         self.body.statements()
     }
     pub fn comments(&self) -> Container<Comment<'a>> {
-        self.body.comments()
+        self.comments.clone()
     }
     pub fn add_comment(&mut self, comment: Comment<'a>) {
-        self.body.add_comment(comment)
+        self.comments.push(Box::new(comment))
     }
     pub fn add_statement(&mut self, statement: Statement<'a>) {
         self.body.add_statement(statement)

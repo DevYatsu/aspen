@@ -51,7 +51,7 @@ impl<'a> Argument<'a> {
     ///
     /// **NOTE: We also parse the '{' which startes the block of the function**
     fn parse_fn_args<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Container<Argument<'s>>> {
-        let mut args = Box::new(vec![]);
+        let mut args = vec![];
         let mut awaits_arg = true;
 
         loop {
@@ -59,7 +59,7 @@ impl<'a> Argument<'a> {
 
             match token {
                 Token::Identifier(value) if awaits_arg => {
-                    args.push(value.into());
+                    args.push(Box::new(value.into()));
                     awaits_arg = false
                 }
 
@@ -67,7 +67,7 @@ impl<'a> Argument<'a> {
                     let next_token = next_token(parser)?;
 
                     match next_token {
-                        Token::Identifier(value) => args.push((value, true).into()),
+                        Token::Identifier(value) => args.push(Box::new((value, true).into())),
                         _ => {
                             return Err(AspenError::Expected(
                                 "an identifier following the '...'".to_owned(),

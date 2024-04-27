@@ -1,5 +1,5 @@
 use super::error::{AspenError, AspenResult};
-use crate::parser::{AspenParser, Comment, Container, Statement, Token};
+use crate::parser::{AspenParser, Container, Statement, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenOption<'a, T> {
@@ -10,7 +10,6 @@ pub enum TokenOption<'a, T> {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Block<'a> {
     statements: Container<Statement<'a>>,
-    comments: Container<Comment<'a>>,
 }
 
 pub fn expect_space<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
@@ -65,25 +64,17 @@ pub fn next_jump_multispace<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Tok
 }
 
 impl<'a> Block<'a> {
-    pub fn new(statements: Container<Statement<'a>>, comments: Container<Comment<'a>>) -> Self {
-        Self {
-            statements,
-            comments,
-        }
-    }
-
-    pub fn comments(&self) -> Container<Comment<'a>> {
-        self.comments.clone()
+    pub fn new(statements: Container<Statement<'a>>) -> Self {
+        Self { statements }
     }
     pub fn statements(&self) -> Container<Statement<'a>> {
         self.statements.clone()
     }
-
-    pub fn add_comment(&mut self, comment: Comment<'a>) {
-        self.comments.push(comment)
-    }
     pub fn add_statement(&mut self, stmt: Statement<'a>) {
-        self.statements.push(stmt)
+        self.statements.push(Box::new(stmt))
+    }
+    pub fn extend_statements(&mut self, statements: Container<Statement<'a>>) {
+        self.statements.extend(statements)
     }
 }
 
