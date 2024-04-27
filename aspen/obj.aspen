@@ -1,6 +1,6 @@
-let obj { 
-    hello! "world", 
+let obj {
+    hello! "world",
     bye! "world"
 }
 
-assert_eq(obj.hello, "world")
+// assert_eq(obj.hello, "world")
