@@ -13,9 +13,13 @@
 @my_func arg1, ...others {
     let ob {others}
 
+    // ob is an object with a property `others` that has an array of elements as a value
+
     let x {
         values! [arg1, arg2, arg3, ...others],
         ...ob
+
+        // this object will have 2 props: values and others
     }
 
     let obj {
