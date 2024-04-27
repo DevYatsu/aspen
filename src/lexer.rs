@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use logos::{Lexer, Logos};
-use rug::{Complete, Float, Integer};
+pub use rug::{Complete, Float, Integer};
 
 pub type AspenLexer<'s> = Lexer<'s, Token<'s>>;
 

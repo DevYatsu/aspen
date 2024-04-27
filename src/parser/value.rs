@@ -1,6 +1,4 @@
-use rug::{Float, Integer};
-
-use crate::lexer::Token;
+use crate::lexer::{Float, Integer, Token};
 
 use super::{
     error::{AspenError, AspenResult},
