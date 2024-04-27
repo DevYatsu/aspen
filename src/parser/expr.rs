@@ -4,41 +4,77 @@ use crate::parser::{AspenParser, Token};
 
 use super::{
     error::{AspenError, AspenResult},
-    utils::{next_jump_multispace, TokenOption},
+    utils::{next_jump_multispace, next_token, TokenOption},
     value::{parse_value, parse_value_or_return_token, Value},
     Expr,
 };
 
-/// Parses an expression.
-///
-pub fn parse_expr<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Expr<'s>> {
-    let token = next_jump_multispace(parser)?;
+impl<'a> Expr<'a> {
+    /// Parses an expression.
+    ///
+    pub fn parse<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Expr<'s>> {
+        let token = next_jump_multispace(parser)?;
+        let expr = Self::parse_with_token(parser, token)?;
 
-    let expr = match token {
-        Token::OpenBracket => parse_array(parser)?.into(),
-        Token::OpenBrace => parse_obj(parser)?.into(),
-        Token::Identifier(ident) => ident.into(),
-        token => parse_value(token)?.into(),
-    };
+        Ok(expr)
+    }
 
-    Ok(expr)
-}
+    /// Parses an expression.
+    ///
+    pub fn parse_with_token<'s>(
+        parser: &mut AspenParser<'s>,
+        token: Token<'s>,
+    ) -> AspenResult<Expr<'s>> {
+        let expr = match token {
+            Token::OpenBracket => parse_array(parser)?.into(),
+            Token::OpenBrace => parse_obj(parser)?.into(),
+            Token::Identifier(ident) => ident.into(),
+            Token::SpreadOperator => {
+                let next_token = next_token(parser)?;
 
-/// Parses an expression or returns the found token.
-///
-pub fn parse_expr_or_return_token<'s>(
-    parser: &mut AspenParser<'s>,
-) -> AspenResult<TokenOption<'s, Expr<'s>>> {
-    let token = next_jump_multispace(parser)?;
+                match next_token {
+                    Token::Identifier(value) => value.into(),
+                    _ => {
+                        return Err(AspenError::Expected(
+                            "an identifier following the '...'".to_owned(),
+                        ))
+                    }
+                }
+            }
+            token => parse_value(token)?.into(),
+        };
 
-    let expr_or_token: Expr<'s> = match token {
-        Token::OpenBracket => parse_array(parser)?.into(),
-        Token::OpenBrace => parse_obj(parser)?.into(),
-        Token::Identifier(ident) => ident.into(),
-        token => return Ok(parse_value_or_return_token(token)?.into()),
-    };
+        Ok(expr)
+    }
 
-    Ok(expr_or_token.into())
+    /// Parses an expression or returns the found token.
+    ///
+    pub fn parse_or_return_token<'s>(
+        parser: &mut AspenParser<'s>,
+    ) -> AspenResult<TokenOption<'s, Expr<'s>>> {
+        let token = next_jump_multispace(parser)?;
+
+        let expr_or_token: Expr<'s> = match token {
+            Token::OpenBracket => parse_array(parser)?.into(),
+            Token::OpenBrace => parse_obj(parser)?.into(),
+            Token::Identifier(ident) => ident.into(),
+            Token::SpreadOperator => {
+                let next_token = next_token(parser)?;
+
+                match next_token {
+                    Token::Identifier(value) => value.into(),
+                    _ => {
+                        return Err(AspenError::Expected(
+                            "an identifier following the '...'".to_owned(),
+                        ))
+                    }
+                }
+            }
+            token => return Ok(parse_value_or_return_token(token)?.into()),
+        };
+
+        Ok(expr_or_token.into())
+    }
 }
 
 /// Parses an array.
@@ -49,7 +85,7 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
     let mut awaits_comma = false;
 
     loop {
-        let expr_or_token = parse_expr_or_return_token(parser)?;
+        let expr_or_token = Expr::parse_or_return_token(parser)?;
 
         match expr_or_token {
             TokenOption::Some(expr) if !awaits_comma => {
@@ -108,6 +144,37 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, E
             }
             Token::Identifier(ident) if key.is_some() => {
                 value = Some(ident.into());
+            }
+            Token::Identifier(ident) => {
+                key = Some(ident);
+                value = Some(ident.into());
+            }
+            Token::SpreadOperator if key.is_some() => {
+                let next_token = next_token(parser)?;
+
+                match next_token {
+                    Token::Identifier(ident) => value = Some(Expr::Id(ident)),
+                    _ => {
+                        return Err(AspenError::Expected(
+                            "an identifier following the '...'".to_owned(),
+                        ))
+                    }
+                }
+            }
+            Token::SpreadOperator => {
+                let next_token = next_token(parser)?;
+
+                match next_token {
+                    Token::Identifier(ident) => {
+                        key = Some(ident);
+                        value = Some(Expr::Id(ident));
+                    }
+                    _ => {
+                        return Err(AspenError::Expected(
+                            "an identifier following the '...'".to_owned(),
+                        ))
+                    }
+                }
             }
             _ if key.is_some() => {
                 value = Some(parse_value(token)?.into());

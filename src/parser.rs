@@ -1,11 +1,9 @@
-use self::func::parse_fn_statement;
+use self::func::Func;
 use self::utils::Block;
-use self::{
-    comment::Comment, error::AspenResult, func::Func, import::Import, value::Value, var::Var,
-};
+use self::{comment::Comment, error::AspenResult, import::Import, value::Value, var::Var};
 use crate::{
     lexer::{AspenLexer, Token},
-    parser::{import::parse_import_stmt, utils::expect_newline, var::parse_var_stmt},
+    parser::utils::expect_newline,
 };
 use hashbrown::HashMap;
 use logos::Lexer;
@@ -25,7 +23,10 @@ pub enum Statement<'a> {
     Var(Var<'a>),
     Import(Import<'a>),
     Func(Func<'a>),
+    Expr(Expr<'a>),
 }
+
+crate::impl_from_for!(Expr, Statement);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'a> {
@@ -47,7 +48,7 @@ pub struct AspenParser<'s> {
 }
 
 pub fn parse_aspen<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
-    let (result, _) = parse_block(parser, false)?;
+    let result = parse_block(parser, None)?;
 
     parser.body = result;
 
@@ -56,11 +57,11 @@ pub fn parse_aspen<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
 
 /// Parses code into a block of statements.
 ///
-/// If stop_on_error is set to true, the parsing will stop when a unknow token is found, can be used e.g `}` for a function block ending.
+/// If stop_on is set, the parsing will stop when the given token is encountered, can be used e.g `}` for a function block ending.
 pub fn parse_block<'s>(
     parser: &mut AspenParser<'s>,
-    stop_on_error: bool,
-) -> AspenResult<(Block<'s>, Option<Token<'s>>)> {
+    stop_on: Option<Token<'s>>,
+) -> AspenResult<Block<'s>> {
     let mut statements = Box::new(vec![]);
     let mut comments = Box::new(vec![]);
 
@@ -69,12 +70,12 @@ pub fn parse_block<'s>(
 
         match token {
             Token::Import => {
-                let stmt = parse_import_stmt(parser)?;
+                let stmt = Import::parse(parser)?;
                 statements.push(stmt);
                 expect_newline(parser)?;
             }
             Token::Let => {
-                let stmt = parse_var_stmt(parser)?;
+                let stmt = Var::parse(parser)?;
                 statements.push(stmt);
                 expect_newline(parser)?;
             }
@@ -87,19 +88,45 @@ pub fn parse_block<'s>(
                 comments.push(Comment::new(value, start, end))
             }
             Token::Func(name) => {
-                let stmt = parse_fn_statement(parser, name)?;
+                let stmt = Func::parse(parser, name)?;
                 statements.push(stmt);
             }
-            _ => {
-                if stop_on_error {
-                    return Ok((Block::new(statements, comments), Some(token)));
-                }
-                //todo!
+            _ if stop_on.is_some() && &token == stop_on.as_ref().unwrap() => {
+                println!("{:?}", statements);
+                return Ok(Block::new(statements, comments));
             }
+            // Token::Identifier(id) => {
+            //     if id == "print" {
+            //         let next = next_jump_multispace(parser)?;
+
+            //         println!("{:?}", next)
+            //     } else {
+            //     }
+            // }
+            Token::Nil
+            | Token::Bool(_)
+            | Token::Float(_)
+            | Token::Int(_)
+            | Token::OpenBrace
+            | Token::OpenBracket
+            | Token::SpreadOperator
+            | Token::String(_) => {
+                if let Ok(ex) = Expr::parse_with_token(parser, token) {
+                    statements.push(ex.into())
+                }
+            }
+            _ => {}
         }
     }
 
-    Ok((Block::new(statements, comments), None))
+    if stop_on.is_some() {
+        return Err(error::AspenError::Expected(format!(
+            "token '{:?}'",
+            stop_on
+        )));
+    }
+
+    Ok(Block::new(statements, comments))
 }
 
 impl<'a> AspenParser<'a> {
