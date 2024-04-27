@@ -144,6 +144,12 @@ impl<'a> AspenParser<'a> {
     pub fn comments(&self) -> Container<Comment<'a>> {
         self.body.comments()
     }
+    pub fn add_comment(&mut self, comment: Comment<'a>) {
+        self.body.add_comment(comment)
+    }
+    pub fn add_statement(&mut self, statement: Statement<'a>) {
+        self.body.add_statement(statement)
+    }
 }
 
 impl<'a> From<Lexer<'a, Token<'a>>> for AspenParser<'a> {

@@ -78,6 +78,13 @@ impl<'a> Block<'a> {
     pub fn statements(&self) -> Container<Statement<'a>> {
         self.statements.clone()
     }
+
+    pub fn add_comment(&mut self, comment: Comment<'a>) {
+        self.comments.push(comment)
+    }
+    pub fn add_statement(&mut self, stmt: Statement<'a>) {
+        self.statements.push(stmt)
+    }
 }
 
 impl<'a, T> From<Token<'a>> for TokenOption<'a, T> {

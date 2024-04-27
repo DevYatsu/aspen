@@ -3,6 +3,7 @@ use hashbrown::HashMap;
 use crate::parser::{AspenParser, Token};
 
 use super::{
+    comment::Comment,
     error::{AspenError, AspenResult},
     utils::{next_jump_multispace, next_token, TokenOption},
     value::{parse_value, parse_value_or_return_token, Value},
@@ -95,6 +96,13 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
             TokenOption::Token(token) => match token {
                 Token::CloseBracket => return Ok(arr),
                 Token::Comma if awaits_comma => awaits_comma = false,
+                Token::LineComment(val)
+                | Token::BlockComment(val)
+                | Token::MultiLineComment(val) => {
+                    let start = parser.lexer.span().start;
+                    let end = parser.lexer.span().end;
+                    parser.add_comment(Comment::new(val, start, end))
+                }
                 _ if awaits_comma => {
                     return Err(AspenError::Expected("a close bracket '}'".to_owned()))
                 }
@@ -167,6 +175,11 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, E
                         ))
                     }
                 }
+            }
+            Token::LineComment(val) | Token::BlockComment(val) | Token::MultiLineComment(val) => {
+                let start = parser.lexer.span().start;
+                let end = parser.lexer.span().end;
+                parser.add_comment(Comment::new(val, start, end))
             }
             _ if key.is_some() => {
                 value = Some(parse_value(token)?.into());
