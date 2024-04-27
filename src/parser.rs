@@ -1,5 +1,7 @@
+use self::for_loop::For;
 use self::func::Func;
 use self::utils::Block;
+use self::while_loop::While;
 use self::{comment::Comment, error::AspenResult, import::Import, value::Value, var::Var};
 use crate::{
     lexer::{AspenLexer, Token},
@@ -11,12 +13,14 @@ use logos::Lexer;
 pub mod comment;
 pub mod error;
 mod expr;
+pub mod for_loop;
 pub mod func;
 pub mod import;
 mod macros;
 pub mod utils;
 pub mod value;
 pub mod var;
+pub mod while_loop;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement<'a> {
@@ -24,6 +28,8 @@ pub enum Statement<'a> {
     Import(Import<'a>),
     Func(Func<'a>),
     Expr(Expr<'a>),
+    For(For<'a>),
+    While(While<'a>),
 }
 
 crate::impl_from_for!(Expr, Statement);
@@ -76,10 +82,33 @@ pub fn parse_block<'s>(
                 statements.push(Box::new(stmt));
                 expect_newline(parser)?;
             }
+
             Token::Let => {
                 let stmt = Var::parse(parser)?;
                 statements.push(Box::new(stmt));
-                expect_newline(parser)?;
+
+                Var::parse_several_vars_or_newline(parser, &mut statements)?;
+            }
+            Token::Comma => {
+                if let Some(stmt) = statements.last() {
+                    if let Statement::Var(_) = **stmt {
+                        let stmt = Var::parse_after_comma(parser)?;
+                        statements.push(Box::new(stmt));
+                    } else {
+                        return Err(error::AspenError::Unknown("token ',' found".to_owned()));
+                    }
+                } else {
+                    return Err(error::AspenError::Unknown("token ',' found".to_owned()));
+                };
+            }
+
+            Token::For => {
+                let stmt = For::parse(parser)?;
+                statements.push(Box::new(stmt));
+            }
+            Token::While => {
+                let stmt = While::parse(parser)?;
+                statements.push(Box::new(stmt));
             }
             Token::LineComment(value)
             | Token::BlockComment(value)

@@ -12,6 +12,7 @@ pub enum AspenError {
     ExpectedSpace,
     ExpectedNewline,
     Expected(String),
+    Unknown(String),
 
     Eof,
 }
@@ -29,6 +30,7 @@ impl fmt::Display for AspenError {
             AspenError::Expected(s) => write!(f, "Expected {}", s),
             AspenError::ExpectedSpace => write!(f, "Expected a space character"),
             AspenError::ExpectedNewline => write!(f, "Expected a newline character"),
+            AspenError::Unknown(s) => write!(f, "Unknown {}", s),
         }
     }
 }

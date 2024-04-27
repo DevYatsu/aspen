@@ -52,12 +52,25 @@ pub fn next_token<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Token<'s>> {
     }
 }
 
+/// Retrieves the next token while jumping spaces and newline tokens. To jump only spaces see [`next_jump_space`].
 pub fn next_jump_multispace<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Token<'s>> {
     loop {
         let token = next_token(parser)?;
 
         match token {
             Token::Newline | Token::Spaces => (),
+            _ => return Ok(token),
+        }
+    }
+}
+
+/// Retrieves the next token while jumping spaces tokens. To jump newline tokens as well see [`next_jump_multispace`].
+pub fn next_jump_space<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Token<'s>> {
+    loop {
+        let token = next_token(parser)?;
+
+        match token {
+            Token::Spaces => (),
             _ => return Ok(token),
         }
     }

@@ -1,6 +1,8 @@
 import "test"
 
-let x "test"
+let x 1
+    ,y 0, z 2
+
     // let s "hello"..x.."!"
 let int 123_456
 let float 123_456.780e-3
