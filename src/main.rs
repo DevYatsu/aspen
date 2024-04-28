@@ -1,4 +1,4 @@
-use crate::lexer::Token;
+use crate::{lexer::Token, parser::parse_aspen};
 use dialoguer::{theme::ColorfulTheme, Select};
 use logos::Logos;
 use parser::error::AspenError;
@@ -20,7 +20,7 @@ fn main() -> Result<(), AspenError> {
         .unwrap();
 
     let content = fs::read_to_string(&format!("./aspen/{}", names[choice]))?;
-    let parser: parser::AspenParser<'_> = Token::lexer(&content).into();
+    let mut parser: parser::AspenParser<'_> = Token::lexer(&content).into();
 
     let start = Instant::now();
     parse_aspen(&mut parser)?;
