@@ -35,7 +35,7 @@ impl<'a> Var<'a> {
 
         let name = match token {
             Token::Identifier(name) => name,
-            _ => return Err(AspenError::Expected("an import value".to_owned())),
+            _ => return Err(AspenError::Expected("a variable declaration".to_owned())),
         };
 
         expect_space(parser)?;

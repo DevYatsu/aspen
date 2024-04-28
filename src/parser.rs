@@ -5,10 +5,7 @@ use self::operator::{AssignOperator, BinaryOperator};
 use self::utils::Block;
 use self::while_loop::While;
 use self::{comment::Comment, error::AspenResult, import::Import, value::Value, var::Var};
-use crate::{
-    lexer::{AspenLexer, Token},
-    parser::utils::expect_newline,
-};
+use crate::lexer::{AspenLexer, Token};
 use hashbrown::HashMap;
 use logos::Lexer;
 
@@ -103,7 +100,8 @@ pub fn parse_block<'s>(
             Token::Import => {
                 let stmt = Import::parse(parser)?;
                 statements.push(Box::new(stmt));
-                expect_newline(parser)?;
+
+                Import::parse_several_or_newline(parser, &mut statements)?;
             }
 
             Token::Let => {
@@ -114,12 +112,17 @@ pub fn parse_block<'s>(
             }
             Token::Comma => {
                 if let Some(stmt) = statements.last() {
-                    if let Statement::Var(_) = **stmt {
-                        let stmt = Var::parse_after_comma(parser)?;
-                        statements.push(Box::new(stmt));
-                    } else {
-                        return Err(error::AspenError::Unknown("token ',' found".to_owned()));
-                    }
+                    match **stmt {
+                        Statement::Var(_) => {
+                            let stmt = Var::parse_after_comma(parser)?;
+                            statements.push(Box::new(stmt))
+                        }
+                        Statement::Import(_) => {
+                            let stmt = Import::parse_after_comma(parser)?;
+                            statements.push(Box::new(stmt))
+                        }
+                        _ => return Err(error::AspenError::Unknown("token ',' found".to_owned())),
+                    };
                 } else {
                     return Err(error::AspenError::Unknown("token ',' found".to_owned()));
                 };
