@@ -178,72 +178,7 @@ pub fn parse_block<'s>(
                 if let Some(stmt) = statements.last_mut() {
                     if let Statement::Expr(base_expr) = stmt.as_mut() {
                         let expr = Expr::parse(parser)?;
-                        match base_expr.as_mut() {
-                            Expr::Binary { lhs, operator, rhs } => {
-                                let result = operator.get_precedence().cmp(&bop.get_precedence());
-                                match result {
-                                    Ordering::Greater => {
-                                        **stmt = Expr::Binary {
-                                            lhs: base_expr.clone(),
-                                            operator: bop.clone(),
-                                            rhs: Box::new(expr),
-                                        }
-                                        .into();
-                                    }
-                                    Ordering::Equal => {
-                                        **stmt = Expr::Binary {
-                                            lhs: lhs.clone(),
-                                            operator: operator.clone(),
-                                            rhs: Box::new(Expr::Binary {
-                                                lhs: rhs.clone(),
-                                                operator: bop,
-                                                rhs: Box::new(expr),
-                                            }),
-                                        }
-                                        .into();
-                                    }
-                                    Ordering::Less => {
-                                        **stmt = Expr::Binary {
-                                            lhs: lhs.clone(),
-                                            operator: operator.clone(),
-                                            rhs: Box::new(Expr::Binary {
-                                                lhs: rhs.clone(),
-                                                operator: bop,
-                                                rhs: Box::new(expr),
-                                            }),
-                                        }
-                                        .into();
-                                    }
-                                }
-                            }
-                            Expr::Assign {
-                                target,
-                                operator,
-                                value,
-                            } => {
-                                **stmt = Expr::Assign {
-                                    target: target.clone(),
-                                    operator: operator.clone(),
-                                    value: Box::new(
-                                        Expr::Binary {
-                                            lhs: value.clone(),
-                                            operator: bop,
-                                            rhs: Box::new(expr),
-                                        }
-                                        .into(),
-                                    ),
-                                }
-                                .into();
-                            }
-                            _ => {
-                                **stmt = Expr::Binary {
-                                    lhs: base_expr.clone(),
-                                    operator: bop,
-                                    rhs: Box::new(expr),
-                                }
-                                .into();
-                            }
-                        };
+                        Expr::modify_into_binary_op(base_expr, expr, bop);
                     } else {
                         return Err(error::AspenError::Unknown(format!("token '{}' found", bop)));
                     }
