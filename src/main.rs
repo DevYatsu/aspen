@@ -20,7 +20,7 @@ fn main() -> Result<(), AspenError> {
         .interact()
         .unwrap();
 
-    let content = fs::read_to_string(&format!("./aspen/{}", names[choice])).unwrap();
+    let content = fs::read_to_string(&format!("./aspen/{}", names[choice]))?;
     let mut parser: parser::AspenParser<'_> = Token::lexer(&content).into();
 
     let start = Instant::now();

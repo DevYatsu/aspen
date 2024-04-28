@@ -40,3 +40,8 @@ impl From<LexingError> for AspenError {
         Self::Lexing(value)
     }
 }
+impl From<std::io::Error> for AspenError {
+    fn from(value: std::io::Error) -> Self {
+        Self::IoError(value)
+    }
+}
