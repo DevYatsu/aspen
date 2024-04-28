@@ -152,6 +152,11 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, E
             Token::Comma if value.is_some() => {
                 hash.insert(key.take().unwrap(), value.take().unwrap());
             }
+            Token::OpenParen => {
+                let expr = Expr::Parenthesized(Box::new(Expr::parse(parser)?));
+                expect_token(parser, Token::CloseParen)?;
+                value = Some(expr)
+            }
             Token::OpenBrace if key.is_some() => {
                 let object = parse_obj(parser)?;
                 value = Some(object.into());
