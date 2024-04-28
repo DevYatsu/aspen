@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use super::{
     comment::Comment,
     error::{AspenError, AspenResult},
+    func::Func,
     operator::BinaryOperator,
     utils::{expect_token, next_jump_multispace, next_token, TokenOption},
     value::{parse_value, parse_value_or_return_token, Value},
@@ -88,6 +89,25 @@ impl<'a> Expr<'a> {
         Ok(expr_or_token.into())
     }
 
+    fn update_most_rhs(&mut self, value: Box<Expr<'a>>) {
+        let mut expr = self;
+        while let Expr::Binary { rhs, .. } = expr {
+            expr = rhs;
+        }
+        *expr = *value;
+    }
+
+    fn add_func_call_to_most_rhs(&mut self, args: Vec<Expr<'a>>) {
+        let mut expr = self;
+        while let Expr::Binary { rhs, .. } = expr {
+            expr = rhs;
+        }
+        *expr = Expr::FuncCall {
+            callee: Box::new(expr.clone()),
+            args,
+        };
+    }
+
     /// Parses a parenthesized expr.
     ///
     /// **NOTE: We assume '(' was already consumed!**
@@ -104,14 +124,50 @@ impl<'a> Expr<'a> {
                     Token::BinaryOperator(op) => {
                         bop = Some(op);
                     }
+                    Token::OpenParen => match base_expr.as_mut() {
+                        Expr::Id(_) => {
+                            let args = Func::parse_call_args(parser)?;
+
+                            base_expr = Box::new(
+                                Expr::FuncCall {
+                                    callee: base_expr,
+                                    args,
+                                }
+                                .into(),
+                            );
+                        }
+                        Expr::Binary { rhs, .. } => {
+                            let args = Func::parse_call_args(parser)?;
+                            rhs.add_func_call_to_most_rhs(args);
+                        }
+                        Expr::Assign { ref mut value, .. } => {
+                            let args = Func::parse_call_args(parser)?;
+
+                            match value.as_mut() {
+                                Expr::Binary { rhs, .. } => {
+                                    rhs.add_func_call_to_most_rhs(args);
+                                }
+                                Expr::Id(_) => {
+                                    base_expr = Box::new(
+                                        Expr::FuncCall {
+                                            callee: base_expr,
+                                            args,
+                                        }
+                                        .into(),
+                                    );
+                                }
+                                _ => (),
+                            }
+                        }
+                        _ => return Err(AspenError::Unknown("token '(' found".to_owned())),
+                    },
                     Token::CloseParen => return Ok(base_expr),
                     _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
                 },
                 token if bop.is_some() => {
                     let right_expr = Expr::parse_with_token(parser, token)?;
-                    let base_expr_clone = base_expr.clone();
 
-                    match *base_expr_clone {
+                    match base_expr.as_mut() {
                         Expr::Binary { lhs, operator, rhs } => {
                             let result = operator
                                 .get_precedence()
@@ -129,7 +185,7 @@ impl<'a> Expr<'a> {
                                         lhs: lhs.clone(),
                                         operator: operator.clone(),
                                         rhs: Box::new(Expr::Binary {
-                                            lhs: rhs,
+                                            lhs: rhs.clone(),
                                             operator: bop.take().unwrap(),
                                             rhs: Box::new(right_expr),
                                         }),
@@ -148,7 +204,7 @@ impl<'a> Expr<'a> {
                                 operator: operator.clone(),
                                 value: Box::new(
                                     Expr::Binary {
-                                        lhs: value,
+                                        lhs: value.clone(),
                                         operator: bop.take().unwrap(),
                                         rhs: base_expr,
                                     }

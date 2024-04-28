@@ -166,11 +166,10 @@ pub fn parse_block<'s>(
             }
             Token::AssignOperator(aop) => {
                 if let Some(stmt) = statements.last_mut() {
-                    let s = stmt.clone(); // there is certainly a way to avoid cloning the Box / same for BinaryOperator
-                    if let Statement::Expr(base_expr) = *s {
+                    if let Statement::Expr(base_expr) = stmt.as_mut() {
                         let expr = Expr::parse(parser)?;
                         **stmt = Expr::Assign {
-                            target: base_expr,
+                            target: base_expr.clone(),
                             operator: aop,
                             value: Box::new(expr),
                         }
@@ -184,17 +183,15 @@ pub fn parse_block<'s>(
             }
             Token::BinaryOperator(bop) => {
                 if let Some(stmt) = statements.last_mut() {
-                    let s = stmt.clone();
-                    if let Statement::Expr(base_expr) = *s {
+                    if let Statement::Expr(base_expr) = stmt.as_mut() {
                         let expr = Expr::parse(parser)?;
-                        let base_expr_clone = base_expr.clone();
-                        match *base_expr {
+                        match base_expr.as_mut() {
                             Expr::Binary { lhs, operator, rhs } => {
                                 let result = operator.get_precedence().cmp(&bop.get_precedence());
                                 match result {
                                     Ordering::Greater => {
                                         **stmt = Expr::Binary {
-                                            lhs: base_expr_clone,
+                                            lhs: base_expr.clone(),
                                             operator: bop.clone(),
                                             rhs: Box::new(expr),
                                         }
@@ -205,7 +202,7 @@ pub fn parse_block<'s>(
                                             lhs: lhs.clone(),
                                             operator: operator.clone(),
                                             rhs: Box::new(Expr::Binary {
-                                                lhs: rhs,
+                                                lhs: rhs.clone(),
                                                 operator: bop,
                                                 rhs: Box::new(expr),
                                             }),
@@ -217,7 +214,7 @@ pub fn parse_block<'s>(
                                             lhs: lhs.clone(),
                                             operator: operator.clone(),
                                             rhs: Box::new(Expr::Binary {
-                                                lhs: rhs,
+                                                lhs: rhs.clone(),
                                                 operator: bop,
                                                 rhs: Box::new(expr),
                                             }),
@@ -236,7 +233,7 @@ pub fn parse_block<'s>(
                                     operator: operator.clone(),
                                     value: Box::new(
                                         Expr::Binary {
-                                            lhs: value,
+                                            lhs: value.clone(),
                                             operator: bop,
                                             rhs: Box::new(expr),
                                         }
@@ -247,7 +244,7 @@ pub fn parse_block<'s>(
                             }
                             _ => {
                                 **stmt = Expr::Binary {
-                                    lhs: base_expr,
+                                    lhs: base_expr.clone(),
                                     operator: bop,
                                     rhs: Box::new(expr),
                                 }
@@ -277,6 +274,7 @@ pub fn parse_block<'s>(
 
                                 continue;
                             }
+
                             _ => (),
                         }
                     }
