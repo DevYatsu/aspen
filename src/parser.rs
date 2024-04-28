@@ -143,14 +143,7 @@ pub fn parse_block<'s>(
             _ if stop_on.is_some() && &token == stop_on.as_ref().unwrap() => {
                 return Ok(Block::new(statements));
             }
-            // Token::Identifier(id) => {
-            //     if id == "print" {
-            //         let next = next_jump_multispace(parser)?;
 
-            //         println!("{:?}", next)
-            //     } else {
-            //     }
-            // }
             Token::Nil
             | Token::Bool(_)
             | Token::Float(_)
@@ -260,23 +253,9 @@ pub fn parse_block<'s>(
             }
             Token::OpenParen => {
                 if let Some(stmt) = statements.last_mut() {
-                    let s = stmt.clone();
-                    if let Statement::Expr(base_expr) = *s {
-                        match *base_expr {
-                            Expr::Id(_) => {
-                                let args = Func::parse_call_args(parser)?;
-
-                                **stmt = Expr::FuncCall {
-                                    callee: base_expr,
-                                    args,
-                                }
-                                .into();
-
-                                continue;
-                            }
-
-                            _ => (),
-                        }
+                    if let Statement::Expr(base_expr) = stmt.as_mut() {
+                        Expr::modify_into_fn_call(parser, base_expr)?;
+                        continue;
                     }
                 }
 

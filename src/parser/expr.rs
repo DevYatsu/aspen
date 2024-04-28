@@ -100,6 +100,46 @@ impl<'s> Expr<'s> {
         };
     }
 
+    /// Function to call after a '(' is consumed when the statement is expected to be a function call.
+    pub fn modify_into_fn_call(
+        parser: &mut AspenParser<'s>,
+        base_expr: &mut Box<Expr<'s>>,
+    ) -> AspenResult<()> {
+        let args = Func::parse_call_args(parser)?;
+        match base_expr.as_mut() {
+            Expr::Id(_) => {
+                *base_expr = Box::new(
+                    Expr::FuncCall {
+                        callee: base_expr.clone(),
+                        args,
+                    }
+                    .into(),
+                );
+            }
+            Expr::Binary { rhs, .. } => {
+                rhs.add_func_call_to_most_rhs(args);
+            }
+            Expr::Assign { ref mut value, .. } => match value.as_mut() {
+                Expr::Binary { rhs, .. } => {
+                    rhs.add_func_call_to_most_rhs(args);
+                }
+                Expr::Id(_) => {
+                    *base_expr = Box::new(
+                        Expr::FuncCall {
+                            callee: base_expr.clone(),
+                            args,
+                        }
+                        .into(),
+                    );
+                }
+                _ => (),
+            },
+            _ => return Err(AspenError::Unknown("token '(' found".to_owned())),
+        };
+
+        Ok(())
+    }
+
     /// Parses a parenthesized expr.
     ///
     /// **NOTE: We assume '(' was already consumed!**
@@ -116,43 +156,7 @@ impl<'s> Expr<'s> {
                     Token::BinaryOperator(op) => {
                         bop = Some(op);
                     }
-                    Token::OpenParen => match base_expr.as_mut() {
-                        Expr::Id(_) => {
-                            let args = Func::parse_call_args(parser)?;
-
-                            base_expr = Box::new(
-                                Expr::FuncCall {
-                                    callee: base_expr,
-                                    args,
-                                }
-                                .into(),
-                            );
-                        }
-                        Expr::Binary { rhs, .. } => {
-                            let args = Func::parse_call_args(parser)?;
-                            rhs.add_func_call_to_most_rhs(args);
-                        }
-                        Expr::Assign { ref mut value, .. } => {
-                            let args = Func::parse_call_args(parser)?;
-
-                            match value.as_mut() {
-                                Expr::Binary { rhs, .. } => {
-                                    rhs.add_func_call_to_most_rhs(args);
-                                }
-                                Expr::Id(_) => {
-                                    base_expr = Box::new(
-                                        Expr::FuncCall {
-                                            callee: base_expr,
-                                            args,
-                                        }
-                                        .into(),
-                                    );
-                                }
-                                _ => (),
-                            }
-                        }
-                        _ => return Err(AspenError::Unknown("token '(' found".to_owned())),
-                    },
+                    Token::OpenParen => Self::modify_into_fn_call(parser, &mut base_expr)?,
                     Token::CloseParen => return Ok(base_expr),
                     _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
                 },
