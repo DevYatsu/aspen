@@ -18,8 +18,8 @@ pub enum Token<'a> {
     #[regex(r"//[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
     LineComment(&'a str),
     #[regex(r"///[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
-    BlockComment(&'a str),
-    #[regex(r"/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/", |lex| let raw=lex.slice();&raw[2..=raw.len()-2])]
+    DocComment(&'a str),
+    #[regex(r"/\*([^*]|\*[^/])*\*/", |lex| let raw=lex.slice();&raw[2..=raw.len()-3])]
     MultiLineComment(&'a str),
 
     #[token("{")]

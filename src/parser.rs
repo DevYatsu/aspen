@@ -111,7 +111,7 @@ pub fn parse_block<'s>(
                 statements.push(Box::new(stmt));
             }
             Token::LineComment(value)
-            | Token::BlockComment(value)
+            | Token::DocComment(value)
             | Token::MultiLineComment(value) => {
                 let start = parser.lexer.span().start;
                 let end = parser.lexer.span().end;

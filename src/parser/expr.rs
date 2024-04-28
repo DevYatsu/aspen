@@ -1,6 +1,9 @@
 use hashbrown::HashMap;
 
-use crate::parser::{AspenParser, Token};
+use crate::{
+    lexer,
+    parser::{AspenParser, Token},
+};
 
 use super::{
     comment::Comment,
@@ -106,9 +109,7 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
             TokenOption::Token(token) => match token {
                 Token::CloseBracket => return Ok(arr),
                 Token::Comma if awaits_comma => awaits_comma = false,
-                Token::LineComment(val)
-                | Token::BlockComment(val)
-                | Token::MultiLineComment(val) => {
+                Token::LineComment(val) | Token::DocComment(val) | Token::MultiLineComment(val) => {
                     let start = parser.lexer.span().start;
                     let end = parser.lexer.span().end;
                     parser.add_comment(Comment::new(val, start, end))
@@ -191,7 +192,7 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, E
                     }
                 }
             }
-            Token::LineComment(val) | Token::BlockComment(val) | Token::MultiLineComment(val) => {
+            Token::LineComment(val) | Token::DocComment(val) | Token::MultiLineComment(val) => {
                 let start = parser.lexer.span().start;
                 let end = parser.lexer.span().end;
                 parser.add_comment(Comment::new(val, start, end))
