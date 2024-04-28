@@ -13,7 +13,7 @@ use crate::{
 pub struct Func<'a> {
     name: &'a str,
     arguments: Container<Argument<'a>>,
-    body: Block<'a>,
+    body: Box<Block<'a>>,
 }
 
 crate::impl_from_for!(Func, Statement);
@@ -31,7 +31,7 @@ impl<'a> Func<'a> {
     pub fn parse<'s>(parser: &mut AspenParser<'s>, name: &'s str) -> AspenResult<Statement<'s>> {
         expect_space(parser)?;
         let arguments = Argument::parse_fn_args(parser)?;
-        let body = parse_block(parser, Some(Token::CloseBrace))?;
+        let body = Box::new(parse_block(parser, Some(Token::CloseBrace))?);
 
         Ok(Func {
             name,

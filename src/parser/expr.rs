@@ -100,7 +100,7 @@ impl<'s> Expr<'s> {
         };
     }
 
-    /// Function to call after a '(' is consumed when the statement is expected to be a function call.
+    /// Function to call after a '(' is consumed when the expression is expected to be a function call.
     pub fn modify_into_fn_call(
         parser: &mut AspenParser<'s>,
         base_expr: &mut Box<Expr<'s>>,
@@ -119,15 +119,23 @@ impl<'s> Expr<'s> {
             Expr::Binary { rhs, .. } => {
                 rhs.add_func_call_to_most_rhs(args);
             }
-            Expr::Assign { ref mut value, .. } => match value.as_mut() {
+            Expr::Assign {
+                ref mut value,
+                ref target,
+                ref operator,
+            } => match value.as_mut() {
                 Expr::Binary { rhs, .. } => {
                     rhs.add_func_call_to_most_rhs(args);
                 }
                 Expr::Id(_) => {
                     *base_expr = Box::new(
-                        Expr::FuncCall {
-                            callee: base_expr.clone(),
-                            args,
+                        Expr::Assign {
+                            target: target.clone(),
+                            operator: operator.to_owned(),
+                            value: Box::new(Expr::FuncCall {
+                                callee: value.clone(),
+                                args,
+                            }),
                         }
                         .into(),
                     );
@@ -138,6 +146,67 @@ impl<'s> Expr<'s> {
         };
 
         Ok(())
+    }
+
+    /// Function to call after a [`BinaryOperator`] is consumed when the expression is expected to be a binary operation.
+    pub fn modify_into_binary_op(
+        base_expr: &mut Box<Expr<'s>>,
+        right_expr: Expr<'s>,
+        bop: BinaryOperator,
+    ) {
+        match base_expr.as_mut() {
+            Expr::Binary { lhs, operator, rhs } => {
+                let result = operator.get_precedence().cmp(&bop.get_precedence());
+                match result {
+                    Ordering::Greater => {
+                        *base_expr = Box::new(Expr::Binary {
+                            lhs: base_expr.clone(),
+                            operator: bop,
+                            rhs: Box::new(right_expr),
+                        });
+                    }
+                    Ordering::Equal | Ordering::Less => {
+                        *base_expr = Expr::Binary {
+                            lhs: lhs.clone(),
+                            operator: operator.clone(),
+                            rhs: Box::new(Expr::Binary {
+                                lhs: rhs.clone(),
+                                operator: bop,
+                                rhs: Box::new(right_expr),
+                            }),
+                        }
+                        .into();
+                    }
+                }
+            }
+            Expr::Assign {
+                target,
+                operator,
+                value,
+            } => {
+                *base_expr = Expr::Assign {
+                    target: target.clone(),
+                    operator: operator.clone(),
+                    value: Box::new(
+                        Expr::Binary {
+                            lhs: value.clone(),
+                            operator: bop,
+                            rhs: base_expr.clone(),
+                        }
+                        .into(),
+                    ),
+                }
+                .into();
+            }
+            _ => {
+                *base_expr = Expr::Binary {
+                    lhs: base_expr.clone(),
+                    operator: bop,
+                    rhs: Box::new(right_expr),
+                }
+                .into();
+            }
+        };
     }
 
     /// Parses a parenthesized expr.
@@ -162,62 +231,7 @@ impl<'s> Expr<'s> {
                 },
                 token if bop.is_some() => {
                     let right_expr = Expr::parse_with_token(parser, token)?;
-
-                    match base_expr.as_mut() {
-                        Expr::Binary { lhs, operator, rhs } => {
-                            let result = operator
-                                .get_precedence()
-                                .cmp(&bop.as_ref().unwrap().get_precedence());
-                            match result {
-                                Ordering::Greater => {
-                                    base_expr = Box::new(Expr::Binary {
-                                        lhs: base_expr,
-                                        operator: bop.take().unwrap(),
-                                        rhs: Box::new(right_expr),
-                                    });
-                                }
-                                Ordering::Equal | Ordering::Less => {
-                                    base_expr = Expr::Binary {
-                                        lhs: lhs.clone(),
-                                        operator: operator.clone(),
-                                        rhs: Box::new(Expr::Binary {
-                                            lhs: rhs.clone(),
-                                            operator: bop.take().unwrap(),
-                                            rhs: Box::new(right_expr),
-                                        }),
-                                    }
-                                    .into();
-                                }
-                            }
-                        }
-                        Expr::Assign {
-                            target,
-                            operator,
-                            value,
-                        } => {
-                            base_expr = Expr::Assign {
-                                target: target.clone(),
-                                operator: operator.clone(),
-                                value: Box::new(
-                                    Expr::Binary {
-                                        lhs: value.clone(),
-                                        operator: bop.take().unwrap(),
-                                        rhs: base_expr,
-                                    }
-                                    .into(),
-                                ),
-                            }
-                            .into();
-                        }
-                        _ => {
-                            base_expr = Expr::Binary {
-                                lhs: base_expr,
-                                operator: bop.take().unwrap(),
-                                rhs: Box::new(right_expr),
-                            }
-                            .into();
-                        }
-                    };
+                    Self::modify_into_binary_op(&mut base_expr, right_expr, bop.take().unwrap());
 
                     bop = None;
                 }

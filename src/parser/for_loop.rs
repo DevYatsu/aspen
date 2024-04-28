@@ -9,8 +9,8 @@ use crate::parser::{AspenParser, Token};
 #[derive(Debug, Clone, PartialEq)]
 pub struct For<'a> {
     pub args: Vec<&'a str>,
-    pub indexed: Expr<'a>,
-    pub body: Block<'a>,
+    pub indexed: Box<Expr<'a>>,
+    pub body: Box<Block<'a>>,
 }
 
 impl<'s> For<'s> {
@@ -22,7 +22,7 @@ impl<'s> For<'s> {
         let args = Self::parse_args(parser)?;
         expect_space(parser)?;
 
-        let indexed = Expr::parse(parser)?;
+        let indexed = Box::new(Expr::parse(parser)?);
 
         let token = next_jump_multispace(parser)?;
         match token {
@@ -30,7 +30,7 @@ impl<'s> For<'s> {
             _ => return Err(AspenError::Expected("a '{'".to_owned())),
         };
 
-        let body = parse_block(parser, Some(Token::CloseBrace))?;
+        let body = Box::new(parse_block(parser, Some(Token::CloseBrace))?);
 
         Ok(For {
             args,

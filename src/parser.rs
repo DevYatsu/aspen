@@ -105,7 +105,7 @@ pub fn parse_block<'s>(
                 let stmt = Var::parse(parser)?;
                 statements.push(Box::new(stmt));
 
-                Var::parse_several_vars_or_newline(parser, &mut statements)?;
+                Var::parse_several_vars_or_complex_expr_or_newline(parser, &mut statements)?;
             }
             Token::Comma => {
                 if let Some(stmt) = statements.last() {
@@ -253,10 +253,18 @@ pub fn parse_block<'s>(
             }
             Token::OpenParen => {
                 if let Some(stmt) = statements.last_mut() {
-                    if let Statement::Expr(base_expr) = stmt.as_mut() {
-                        Expr::modify_into_fn_call(parser, base_expr)?;
-                        continue;
-                    }
+                    match stmt.as_mut() {
+                        Statement::Expr(base_expr) => {
+                            Expr::modify_into_fn_call(parser, base_expr)?;
+                            continue;
+                        }
+                        Statement::Var(var) => {
+                            let Var { value, .. } = var;
+                            Expr::modify_into_fn_call(parser, value)?;
+                            continue;
+                        }
+                        _ => (),
+                    };
                 }
 
                 let expr = Expr::parse_parenthesized(parser)?;

@@ -8,8 +8,8 @@ use crate::parser::{AspenParser, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct While<'a> {
-    pub condition: Expr<'a>,
-    pub body: Block<'a>,
+    pub condition: Box<Expr<'a>>,
+    pub body: Box<Block<'a>>,
 }
 
 impl<'s> While<'s> {
@@ -18,7 +18,7 @@ impl<'s> While<'s> {
     /// **NOTE: We assume "while" is already consumed by the parser!**
     pub fn parse(parser: &mut AspenParser<'s>) -> AspenResult<Statement<'s>> {
         expect_space(parser)?;
-        let condition = Expr::parse(parser)?;
+        let condition = Box::new(Expr::parse(parser)?);
 
         let token = next_jump_multispace(parser)?;
         match token {
@@ -26,7 +26,7 @@ impl<'s> While<'s> {
             _ => return Err(AspenError::Expected("a '{'".to_owned())),
         };
 
-        let body = parse_block(parser, Some(Token::CloseBrace))?;
+        let body = Box::new(parse_block(parser, Some(Token::CloseBrace))?);
 
         Ok(While { condition, body }.into())
     }
