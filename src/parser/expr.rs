@@ -12,10 +12,10 @@ use super::{
 use crate::parser::{AspenParser, Token};
 use hashbrown::HashMap;
 
-impl<'a> Expr<'a> {
+impl<'s> Expr<'s> {
     /// Parses an expression.
     ///
-    pub fn parse<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Expr<'s>> {
+    pub fn parse(parser: &mut AspenParser<'s>) -> AspenResult<Expr<'s>> {
         let token = next_jump_multispace(parser)?;
         let expr = Self::parse_with_token(parser, token)?;
 
@@ -24,7 +24,7 @@ impl<'a> Expr<'a> {
 
     /// Parses an expression.
     ///
-    pub fn parse_with_token<'s>(
+    pub fn parse_with_token(
         parser: &mut AspenParser<'s>,
         token: Token<'s>,
     ) -> AspenResult<Expr<'s>> {
@@ -57,7 +57,7 @@ impl<'a> Expr<'a> {
 
     /// Parses an expression or returns the found token.
     ///
-    pub fn parse_or_return_token<'s>(
+    pub fn parse_or_return_token(
         parser: &mut AspenParser<'s>,
     ) -> AspenResult<TokenOption<'s, Expr<'s>>> {
         let token = next_jump_multispace(parser)?;
@@ -89,15 +89,7 @@ impl<'a> Expr<'a> {
         Ok(expr_or_token.into())
     }
 
-    fn update_most_rhs(&mut self, value: Box<Expr<'a>>) {
-        let mut expr = self;
-        while let Expr::Binary { rhs, .. } = expr {
-            expr = rhs;
-        }
-        *expr = *value;
-    }
-
-    fn add_func_call_to_most_rhs(&mut self, args: Vec<Expr<'a>>) {
+    fn add_func_call_to_most_rhs(&mut self, args: Vec<Expr<'s>>) {
         let mut expr = self;
         while let Expr::Binary { rhs, .. } = expr {
             expr = rhs;
@@ -111,7 +103,7 @@ impl<'a> Expr<'a> {
     /// Parses a parenthesized expr.
     ///
     /// **NOTE: We assume '(' was already consumed!**
-    pub fn parse_parenthesized<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Box<Expr<'s>>> {
+    pub fn parse_parenthesized(parser: &mut AspenParser<'s>) -> AspenResult<Box<Expr<'s>>> {
         let token = next_jump_multispace(parser)?;
         let mut base_expr = Box::new(Expr::parse_with_token(parser, token)?);
         let mut bop: Option<BinaryOperator> = None; // bop for binary operator
