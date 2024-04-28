@@ -1,6 +1,8 @@
+use std::cmp::Ordering;
+
 use self::for_loop::For;
 use self::func::Func;
-use self::operator::AssignOperator;
+use self::operator::{AssignOperator, BinaryOperator};
 use self::utils::Block;
 use self::while_loop::While;
 use self::{comment::Comment, error::AspenResult, import::Import, value::Value, var::Var};
@@ -29,12 +31,10 @@ pub enum Statement<'a> {
     Var(Var<'a>),
     Import(Import<'a>),
     Func(Func<'a>),
-    Expr(Expr<'a>),
+    Expr(Box<Expr<'a>>),
     For(For<'a>),
     While(While<'a>),
 }
-
-crate::impl_from_for!(Expr, Statement);
 
 pub type Container<T> = Vec<Box<T>>;
 
@@ -54,6 +54,11 @@ pub enum Expr<'a> {
         target: Box<Expr<'a>>,
         operator: AssignOperator,
         value: Box<Expr<'a>>,
+    },
+    Binary {
+        lhs: Box<Expr<'a>>,
+        operator: BinaryOperator,
+        rhs: Box<Expr<'a>>,
     },
 }
 
@@ -154,22 +159,101 @@ pub fn parse_block<'s>(
                     statements.push(Box::new(ex.into()))
                 }
             }
-            Token::AssignOperator(op) => {
+            Token::AssignOperator(aop) => {
                 if let Some(stmt) = statements.last_mut() {
-                    let s = stmt.clone();
+                    let s = stmt.clone(); // there is certainly a way to avoid cloning the Box / same for BinaryOperator
                     if let Statement::Expr(base_expr) = *s {
                         let expr = Expr::parse(parser)?;
                         **stmt = Expr::Assign {
-                            target: Box::new(base_expr),
-                            operator: op,
+                            target: base_expr,
+                            operator: aop,
                             value: Box::new(expr),
                         }
                         .into();
                     } else {
-                        return Err(error::AspenError::Unknown(format!("token '{}' found", op)));
+                        return Err(error::AspenError::Unknown(format!("token '{}' found", aop)));
                     }
                 } else {
-                    return Err(error::AspenError::Unknown(format!("token '{}' found", op)));
+                    return Err(error::AspenError::Unknown(format!("token '{}' found", aop)));
+                };
+            }
+            Token::BinaryOperator(bop) => {
+                if let Some(stmt) = statements.last_mut() {
+                    let s = stmt.clone();
+                    if let Statement::Expr(base_expr) = *s {
+                        let expr = Expr::parse(parser)?;
+                        let base_expr_clone = base_expr.clone();
+                        match *base_expr {
+                            Expr::Binary { lhs, operator, rhs } => {
+                                let result = operator.get_precedence().cmp(&bop.get_precedence());
+                                match result {
+                                    Ordering::Greater => {
+                                        **stmt = Expr::Binary {
+                                            lhs: base_expr_clone,
+                                            operator: bop.clone(),
+                                            rhs: Box::new(expr),
+                                        }
+                                        .into();
+                                    }
+                                    Ordering::Equal => {
+                                        **stmt = Expr::Binary {
+                                            lhs: lhs.clone(),
+                                            operator: operator.clone(),
+                                            rhs: Box::new(Expr::Binary {
+                                                lhs: rhs,
+                                                operator: bop,
+                                                rhs: Box::new(expr),
+                                            }),
+                                        }
+                                        .into();
+                                    }
+                                    Ordering::Less => {
+                                        **stmt = Expr::Binary {
+                                            lhs: lhs.clone(),
+                                            operator: operator.clone(),
+                                            rhs: Box::new(Expr::Binary {
+                                                lhs: rhs,
+                                                operator: bop,
+                                                rhs: Box::new(expr),
+                                            }),
+                                        }
+                                        .into();
+                                    }
+                                }
+                            }
+                            Expr::Assign {
+                                target,
+                                operator,
+                                value,
+                            } => {
+                                **stmt = Expr::Assign {
+                                    target: target.clone(),
+                                    operator: operator.clone(),
+                                    value: Box::new(
+                                        Expr::Binary {
+                                            lhs: value,
+                                            operator: bop,
+                                            rhs: Box::new(expr),
+                                        }
+                                        .into(),
+                                    ),
+                                }
+                                .into();
+                            }
+                            _ => {
+                                **stmt = Expr::Binary {
+                                    lhs: base_expr,
+                                    operator: bop,
+                                    rhs: Box::new(expr),
+                                }
+                                .into();
+                            }
+                        };
+                    } else {
+                        return Err(error::AspenError::Unknown(format!("token '{}' found", bop)));
+                    }
+                } else {
+                    return Err(error::AspenError::Unknown(format!("token '{}' found", bop)));
                 };
             }
 
@@ -212,5 +296,11 @@ impl<'a> AspenParser<'a> {
 impl<'a> From<Lexer<'a, Token<'a>>> for AspenParser<'a> {
     fn from(value: Lexer<'a, Token<'a>>) -> Self {
         Self::new(value)
+    }
+}
+
+impl<'a> From<Expr<'a>> for Statement<'a> {
+    fn from(value: Expr<'a>) -> Self {
+        Statement::Expr(Box::new(value))
     }
 }
