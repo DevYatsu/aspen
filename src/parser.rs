@@ -60,6 +60,11 @@ pub enum Expr<'a> {
         operator: BinaryOperator,
         rhs: Box<Expr<'a>>,
     },
+
+    FuncCall {
+        callee: Box<Expr<'a>>,
+        args: Vec<Expr<'a>>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -257,6 +262,23 @@ pub fn parse_block<'s>(
                 };
             }
             Token::OpenParen => {
+                if let Some(stmt) = statements.last_mut() {
+                    let s = stmt.clone();
+                    if let Statement::Expr(base_expr) = *s {
+                        match *base_expr {
+                            Expr::Id(_) => {
+                                let args = Func::parse_func_call_args(parser)?;
+                                **stmt = Expr::FuncCall {
+                                    callee: base_expr,
+                                    args,
+                                }
+                                .into()
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+
                 let expr = Expr::parse_parenthesized(parser)?;
                 statements.push(Box::new(Statement::Expr(expr)))
             }

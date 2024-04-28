@@ -2,7 +2,7 @@ use super::{
     error::{AspenError, AspenResult},
     parse_block,
     utils::{expect_space, next_jump_multispace, next_token, Block},
-    Statement,
+    Expr, Statement,
 };
 use crate::{
     lexer::Token,
@@ -39,6 +39,32 @@ impl<'a> Func<'a> {
             body,
         }
         .into())
+    }
+
+    /// Parses arguments of a function call.
+    ///
+    /// **NOTE: We assume '(' was already consumed!**
+    pub fn parse_func_call_args<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Expr<'s>>> {
+        let mut args = vec![];
+        let mut awaits_arg = true;
+
+        loop {
+            let token = next_jump_multispace(parser)?;
+
+            match token {
+                token if awaits_arg => {
+                    let expr = Expr::parse_with_token(parser, token)?;
+                    args.push(expr);
+                    awaits_arg = false
+                }
+
+                Token::CloseParen => break,
+                Token::Comma if !awaits_arg => awaits_arg = true,
+                _ => return Err(AspenError::Expected("a valid argument or ')'".to_owned())),
+            };
+        }
+
+        Ok(args)
     }
 }
 
