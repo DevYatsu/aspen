@@ -1,3 +1,4 @@
+use self::error::AspenError;
 use self::for_loop::For;
 use self::func::Func;
 use self::operator::{AssignOperator, BinaryOperator};
@@ -61,7 +62,13 @@ pub enum Expr<'a> {
 
     FuncCall {
         callee: Box<Expr<'a>>,
-        args: Vec<Expr<'a>>,
+        args: Vec<Box<Expr<'a>>>,
+    },
+
+    Range {
+        start: Box<Expr<'a>>,
+        end: Box<Expr<'a>>,
+        step: Option<Box<Expr<'a>>>,
     },
 }
 
@@ -176,7 +183,7 @@ pub fn parse_block<'s>(
                 if let Some(stmt) = statements.last_mut() {
                     if let Statement::Expr(base_expr) = stmt.as_mut() {
                         let expr = Expr::parse(parser)?;
-                        Expr::modify_into_binary_op(base_expr, expr, bop);
+                        Expr::modify_into_binary_op(base_expr, expr, bop)?;
                     } else {
                         return Err(error::AspenError::Unknown(format!("token '{}' found", bop)));
                     }
@@ -202,6 +209,24 @@ pub fn parse_block<'s>(
 
                 let expr = Expr::parse_parenthesized(parser)?;
                 statements.push(Box::new(Statement::Expr(expr)))
+            }
+            Token::Range => {
+                if let Some(stmt) = statements.last_mut() {
+                    match stmt.as_mut() {
+                        Statement::Expr(base_expr) => {
+                            Expr::modify_into_range(parser, base_expr)?;
+                            continue;
+                        }
+                        Statement::Var(var) => {
+                            let Var { value, .. } = var;
+                            Expr::modify_into_range(parser, value)?;
+                            continue;
+                        }
+                        _ => (),
+                    };
+                }
+
+                return Err(AspenError::Unknown("token ':' found".to_owned()));
             }
             _ => {}
         }

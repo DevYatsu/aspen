@@ -73,7 +73,7 @@ impl<'a> Var<'a> {
                         let right_expr = Expr::parse(parser)?;
 
                         let Var { value, .. } = var;
-                        Expr::modify_into_binary_op(value, right_expr, bop);
+                        Expr::modify_into_binary_op(value, right_expr, bop)?;
                     }
                 }
                 _ => return Err(AspenError::ExpectedNewline),

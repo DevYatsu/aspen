@@ -39,6 +39,37 @@ impl BinaryOperator {
             | BinaryOperator::LessThanOrEqual => 1,
         }
     }
+
+    pub fn get_verb(&self) -> &'static str {
+        match self {
+            BinaryOperator::Plus => "add",
+            BinaryOperator::Sub => "subtract",
+            BinaryOperator::Times => "multiply",
+            BinaryOperator::Exponent => "raise",
+            BinaryOperator::Divide => "divide",
+            BinaryOperator::Modulo => "take the modulo of",
+            BinaryOperator::Equal => "check for equality of",
+            BinaryOperator::GreaterThan => "check if",
+            BinaryOperator::GreaterThanOrEqual => "check if",
+            BinaryOperator::LessThan => "check if",
+            BinaryOperator::LessThanOrEqual => "check if",
+        }
+    }
+    pub fn get_proposition(&self) -> &'static str {
+        match self {
+            BinaryOperator::Plus => "to",
+            BinaryOperator::Sub => "to",
+            BinaryOperator::Times => "with",
+            BinaryOperator::Divide => "with",
+            BinaryOperator::Exponent => "to the power of",
+            BinaryOperator::Modulo => "by",
+            BinaryOperator::Equal => "and",
+            BinaryOperator::GreaterThan => "is greater than",
+            BinaryOperator::GreaterThanOrEqual => "is greater than or equal to",
+            BinaryOperator::LessThan => "is less than",
+            BinaryOperator::LessThanOrEqual => "is less than or equal to",
+        }
+    }
 }
 
 impl fmt::Display for AssignOperator {

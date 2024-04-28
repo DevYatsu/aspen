@@ -44,7 +44,7 @@ impl<'a> Func<'a> {
     /// Parses arguments of a function call.
     ///
     /// **NOTE: We assume '(' was already consumed!**
-    pub fn parse_call_args<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Expr<'s>>> {
+    pub fn parse_call_args<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
         let mut args = vec![];
         let mut awaits_arg = true;
 
@@ -54,8 +54,26 @@ impl<'a> Func<'a> {
                 Token::CloseParen => break,
                 token if awaits_arg => {
                     let expr = Expr::parse_with_token(parser, token)?;
-                    args.push(expr);
+                    args.push(Box::new(expr));
                     awaits_arg = false
+                }
+                Token::Range if !awaits_arg => {
+                    if let Some(expr) = args.last_mut() {
+                        match expr.as_mut() {
+                            Expr::Id(_)
+                            | Expr::Value(_)
+                            | Expr::FuncCall { .. }
+                            | Expr::Binary { .. }
+                            | Expr::Parenthesized(_)
+                            | Expr::Range { .. } => Expr::modify_into_range(parser, expr)?,
+                            _ => {
+                                return Err(AspenError::Unknown(format!(
+                                    "token ':', cannot create a range from {:?}",
+                                    expr,
+                                )))
+                            }
+                        };
+                    }
                 }
                 Token::Comma if !awaits_arg => awaits_arg = true,
                 _ => return Err(AspenError::Expected("a valid argument or ')'".to_owned())),

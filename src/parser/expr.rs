@@ -89,7 +89,7 @@ impl<'s> Expr<'s> {
         Ok(expr_or_token.into())
     }
 
-    fn add_func_call_to_most_rhs(&mut self, args: Vec<Expr<'s>>) {
+    fn add_func_call_to_most_rhs(&mut self, args: Vec<Box<Expr<'s>>>) {
         let mut expr = self;
         while let Expr::Binary { rhs, .. } = expr {
             expr = rhs;
@@ -107,7 +107,7 @@ impl<'s> Expr<'s> {
     ) -> AspenResult<()> {
         let args = Func::parse_call_args(parser)?;
         match base_expr.as_mut() {
-            Expr::Id(_) => {
+            Expr::Id(_) | Expr::FuncCall { .. } => {
                 *base_expr = Box::new(
                     Expr::FuncCall {
                         callee: base_expr.clone(),
@@ -127,7 +127,7 @@ impl<'s> Expr<'s> {
                 Expr::Binary { rhs, .. } => {
                     rhs.add_func_call_to_most_rhs(args);
                 }
-                Expr::Id(_) => {
+                Expr::Id(_) | Expr::FuncCall { .. } => {
                     *base_expr = Box::new(
                         Expr::Assign {
                             target: target.clone(),
@@ -148,12 +148,97 @@ impl<'s> Expr<'s> {
         Ok(())
     }
 
+    /// Function to call after a ':' is consumed when the expression is expected to be a range.
+    pub fn modify_into_range(
+        parser: &mut AspenParser<'s>,
+        base_expr: &mut Box<Expr<'s>>,
+    ) -> AspenResult<()> {
+        let second_expr = Expr::parse(parser)?;
+
+        match base_expr.as_mut() {
+            Expr::Range { start, end, step } => {
+                if step.is_some() {
+                    return Err(AspenError::Unknown(format!(
+                        "token ':' found, a Range has three parts: start:end:step"
+                    )));
+                }
+
+                *base_expr = Box::new(
+                    Expr::Range {
+                        start: start.clone(),
+                        end: end.clone(),
+                        step: Some(Box::new(second_expr)),
+                    }
+                    .into(),
+                );
+            }
+            Expr::Id(_)
+            | Expr::Binary { .. }
+            | Expr::FuncCall { .. }
+            | Expr::Value(_)
+            | Expr::Parenthesized(_) => {
+                *base_expr = Box::new(
+                    Expr::Range {
+                        start: base_expr.clone(),
+                        end: Box::new(second_expr),
+                        step: None,
+                    }
+                    .into(),
+                );
+            }
+            Expr::Assign {
+                ref mut value,
+                operator,
+                target,
+            } => match value.as_mut() {
+                Expr::Range { start, end, step } => {
+                    if step.is_some() {
+                        return Err(AspenError::Unknown(format!(
+                            "token ':' found, a Range has three parts: start:end:step"
+                        )));
+                    }
+
+                    *base_expr = Box::new(Expr::Assign {
+                        target: target.clone(),
+                        operator: operator.clone(),
+                        value: Expr::Range {
+                            start: start.clone(),
+                            end: end.clone(),
+                            step: Some(Box::new(second_expr)),
+                        }
+                        .into(),
+                    });
+                }
+                Expr::Binary { .. }
+                | Expr::FuncCall { .. }
+                | Expr::Id(_)
+                | Expr::Value(_)
+                | Expr::Parenthesized(_) => {
+                    *base_expr = Box::new(Expr::Assign {
+                        target: target.clone(),
+                        operator: operator.clone(),
+                        value: Expr::Range {
+                            start: value.clone(),
+                            end: Box::new(second_expr),
+                            step: None,
+                        }
+                        .into(),
+                    });
+                }
+                _ => return Err(AspenError::Unknown("token ':' found".to_owned())),
+            },
+            _ => return Err(AspenError::Unknown("token ':' found".to_owned())),
+        };
+
+        Ok(())
+    }
+
     /// Function to call after a [`BinaryOperator`] is consumed when the expression is expected to be a binary operation.
     pub fn modify_into_binary_op(
         base_expr: &mut Box<Expr<'s>>,
         right_expr: Expr<'s>,
         bop: BinaryOperator,
-    ) {
+    ) -> AspenResult<()> {
         match base_expr.as_mut() {
             Expr::Binary { lhs, operator, rhs } => {
                 let result = operator.get_precedence().cmp(&bop.get_precedence());
@@ -198,7 +283,7 @@ impl<'s> Expr<'s> {
                 }
                 .into();
             }
-            _ => {
+            Expr::FuncCall { .. } | Expr::Id(_) | Expr::Value(_) | Expr::Parenthesized(_) => {
                 *base_expr = Expr::Binary {
                     lhs: base_expr.clone(),
                     operator: bop,
@@ -206,7 +291,19 @@ impl<'s> Expr<'s> {
                 }
                 .into();
             }
+            _ => {
+                return Err(AspenError::Unknown(format!(
+                    "token '{}', cannot {} {:?} {:?} {}",
+                    bop,
+                    bop.get_verb(),
+                    base_expr,
+                    right_expr,
+                    bop.get_proposition(),
+                )))
+            }
         };
+
+        Ok(())
     }
 
     /// Parses a parenthesized expr.
@@ -225,13 +322,13 @@ impl<'s> Expr<'s> {
                     Token::BinaryOperator(op) => {
                         bop = Some(op);
                     }
-                    Token::OpenParen => Self::modify_into_fn_call(parser, &mut base_expr)?,
+                    Token::OpenParen => Expr::modify_into_fn_call(parser, &mut base_expr)?,
                     Token::CloseParen => return Ok(base_expr),
                     _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
                 },
                 token if bop.is_some() => {
                     let right_expr = Expr::parse_with_token(parser, token)?;
-                    Self::modify_into_binary_op(&mut base_expr, right_expr, bop.take().unwrap());
+                    Expr::modify_into_binary_op(&mut base_expr, right_expr, bop.take().unwrap())?;
 
                     bop = None;
                 }

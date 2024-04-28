@@ -57,6 +57,8 @@ pub enum Token<'a> {
     SpreadOperator,
     #[token(".", priority = 0)]
     Dot,
+    #[token(":")]
+    Range,
 
     #[regex("@[a-zA-Z_][a-zA-Z0-9_]*", |lex| &lex.slice()[1..])]
     Func(&'a str),
