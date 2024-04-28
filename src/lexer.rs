@@ -3,7 +3,7 @@ use std::fmt::Display;
 use logos::{Lexer, Logos};
 pub use rug::{Complete, Float, Integer};
 
-use crate::parser::operator::AssignOperator;
+use crate::parser::operator::{AssignOperator, BinaryOperator};
 
 pub type AspenLexer<'s> = Lexer<'s, Token<'s>>;
 
@@ -93,8 +93,23 @@ pub enum Token<'a> {
     })]
     AssignOperator(AssignOperator),
 
-    #[regex(r#"\+|-|\*\*|\*|\\|%"#, |lex| lex.slice())]
-    BinaryOperator(&'a str),
+    #[regex(r#"\+|-|\*\*|\*|/|%|==|>=|>|<=|<"#, |lex| {
+        match lex.slice() {
+            "+" => BinaryOperator::Plus,
+            "-" => BinaryOperator::Sub,
+            "*" => BinaryOperator::Times,
+            "**" => BinaryOperator::Exponent,
+            "/" => BinaryOperator::Divide,
+            "%" => BinaryOperator::Modulo,
+            "==" => BinaryOperator::Equal,
+            ">"=> BinaryOperator::GreaterThan,
+            ">="=> BinaryOperator::GreaterThanOrEqual,
+            "<"=> BinaryOperator::LessThan,
+            "<="=> BinaryOperator::LessThanOrEqual,
+            _ => unreachable!(),
+        }
+    })]
+    BinaryOperator(BinaryOperator),
 }
 
 #[derive(Default, Debug, Clone, PartialEq)]
