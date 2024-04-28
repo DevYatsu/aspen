@@ -44,21 +44,19 @@ impl<'a> Func<'a> {
     /// Parses arguments of a function call.
     ///
     /// **NOTE: We assume '(' was already consumed!**
-    pub fn parse_func_call_args<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Expr<'s>>> {
+    pub fn parse_call_args<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Expr<'s>>> {
         let mut args = vec![];
         let mut awaits_arg = true;
 
         loop {
             let token = next_jump_multispace(parser)?;
-
             match token {
+                Token::CloseParen => break,
                 token if awaits_arg => {
                     let expr = Expr::parse_with_token(parser, token)?;
                     args.push(expr);
                     awaits_arg = false
                 }
-
-                Token::CloseParen => break,
                 Token::Comma if !awaits_arg => awaits_arg = true,
                 _ => return Err(AspenError::Expected("a valid argument or ')'".to_owned())),
             };
@@ -84,11 +82,11 @@ impl<'a> Argument<'a> {
             let token = next_jump_multispace(parser)?;
 
             match token {
+                Token::OpenBrace => break,
                 Token::Identifier(value) if awaits_arg => {
                     args.push(Box::new(value.into()));
                     awaits_arg = false
                 }
-
                 Token::SpreadOperator if awaits_arg => {
                     let next_token = next_token(parser)?;
 
@@ -103,7 +101,6 @@ impl<'a> Argument<'a> {
 
                     awaits_arg = false
                 }
-                Token::OpenBrace => break,
                 Token::Comma if !awaits_arg => awaits_arg = true,
                 _ => {
                     return Err(AspenError::Expected(

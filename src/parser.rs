@@ -267,12 +267,15 @@ pub fn parse_block<'s>(
                     if let Statement::Expr(base_expr) = *s {
                         match *base_expr {
                             Expr::Id(_) => {
-                                let args = Func::parse_func_call_args(parser)?;
+                                let args = Func::parse_call_args(parser)?;
+
                                 **stmt = Expr::FuncCall {
                                     callee: base_expr,
                                     args,
                                 }
-                                .into()
+                                .into();
+
+                                continue;
                             }
                             _ => (),
                         }
