@@ -1,6 +1,9 @@
+use std::cmp::Ordering;
+
 use super::{
     comment::Comment,
     error::{AspenError, AspenResult},
+    operator::BinaryOperator,
     utils::{expect_token, next_jump_multispace, next_token, TokenOption},
     value::{parse_value, parse_value_or_return_token, Value},
     Expr,
@@ -83,6 +86,92 @@ impl<'a> Expr<'a> {
         };
 
         Ok(expr_or_token.into())
+    }
+
+    /// Parses a parenthesized expr.
+    ///
+    /// **NOTE: We assume '(' was already consumed!**
+    pub fn parse_parenthesized<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Box<Expr<'s>>> {
+        let token = next_jump_multispace(parser)?;
+        let mut base_expr = Box::new(Expr::parse_with_token(parser, token)?);
+        let mut bop: Option<BinaryOperator> = None; // bop for binary operator
+
+        loop {
+            let token = next_jump_multispace(parser)?;
+
+            match token {
+                token if bop.is_none() => match token {
+                    Token::BinaryOperator(op) => {
+                        bop = Some(op);
+                    }
+                    Token::CloseParen => return Ok(base_expr),
+                    _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
+                },
+                token if bop.is_some() => {
+                    let right_expr = Expr::parse_with_token(parser, token)?;
+                    let base_expr_clone = base_expr.clone();
+
+                    match *base_expr_clone {
+                        Expr::Binary { lhs, operator, rhs } => {
+                            let result = operator
+                                .get_precedence()
+                                .cmp(&bop.as_ref().unwrap().get_precedence());
+                            match result {
+                                Ordering::Greater => {
+                                    base_expr = Box::new(Expr::Binary {
+                                        lhs: base_expr,
+                                        operator: bop.take().unwrap(),
+                                        rhs: Box::new(right_expr),
+                                    });
+                                }
+                                Ordering::Equal | Ordering::Less => {
+                                    base_expr = Expr::Binary {
+                                        lhs: lhs.clone(),
+                                        operator: operator.clone(),
+                                        rhs: Box::new(Expr::Binary {
+                                            lhs: rhs,
+                                            operator: bop.take().unwrap(),
+                                            rhs: Box::new(right_expr),
+                                        }),
+                                    }
+                                    .into();
+                                }
+                            }
+                        }
+                        Expr::Assign {
+                            target,
+                            operator,
+                            value,
+                        } => {
+                            base_expr = Expr::Assign {
+                                target: target.clone(),
+                                operator: operator.clone(),
+                                value: Box::new(
+                                    Expr::Binary {
+                                        lhs: value,
+                                        operator: bop.take().unwrap(),
+                                        rhs: base_expr,
+                                    }
+                                    .into(),
+                                ),
+                            }
+                            .into();
+                        }
+                        _ => {
+                            base_expr = Expr::Binary {
+                                lhs: base_expr,
+                                operator: bop.take().unwrap(),
+                                rhs: Box::new(right_expr),
+                            }
+                            .into();
+                        }
+                    };
+
+                    bop = None;
+                }
+                _ => unreachable!(),
+            }
+        }
     }
 }
 

@@ -256,7 +256,10 @@ pub fn parse_block<'s>(
                     return Err(error::AspenError::Unknown(format!("token '{}' found", bop)));
                 };
             }
-
+            Token::OpenParen => {
+                let expr = Expr::parse_parenthesized(parser)?;
+                statements.push(Box::new(Statement::Expr(expr)))
+            }
             _ => {}
         }
     }

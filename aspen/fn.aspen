@@ -1,5 +1,11 @@
 @add num1, ...numbers {
-    num1.add_all(numbers)
+   // num1.add_all(numbers)
+
+    for num -> numbers {
+        num1 += num
+    }
+
+    (num * 2 / 2)
 }
 
 @operation num1, num2 {
