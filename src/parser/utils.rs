@@ -23,6 +23,21 @@ pub fn expect_space<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
     Ok(())
 }
 
+/// Jumps spaces and newlines and return an Error if the expected token is not found!
+pub fn expect_token<'s>(
+    parser: &mut AspenParser<'s>,
+    expected_token: Token<'s>,
+) -> AspenResult<()> {
+    let token = next_jump_multispace(parser)?;
+
+    match token {
+        token if token == expected_token => (),
+        _ => return Err(AspenError::Expected(format!("'{:?}'", expected_token))),
+    }
+
+    Ok(())
+}
+
 pub fn expect_newline<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
     let token = next_token(parser)?;
 

@@ -41,12 +41,12 @@ pub enum Expr<'a> {
     Value(Value<'a>),
 
     Array(Container<Expr<'a>>),
-
     Object(HashMap<&'a str, Expr<'a>>),
 
     Id(&'a str),
-
     SpeadId(&'a str),
+
+    Parenthesized(Box<Expr<'a>>),
 }
 
 #[derive(Debug, Clone)]

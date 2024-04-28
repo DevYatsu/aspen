@@ -5,7 +5,7 @@ use crate::parser::{AspenParser, Token};
 use super::{
     comment::Comment,
     error::{AspenError, AspenResult},
-    utils::{next_jump_multispace, next_token, TokenOption},
+    utils::{expect_token, next_jump_multispace, next_token, TokenOption},
     value::{parse_value, parse_value_or_return_token, Value},
     Expr,
 };
@@ -29,6 +29,11 @@ impl<'a> Expr<'a> {
         let expr = match token {
             Token::OpenBracket => parse_array(parser)?.into(),
             Token::OpenBrace => parse_obj(parser)?.into(),
+            Token::OpenParen => {
+                let expr = Expr::Parenthesized(Box::new(Self::parse(parser)?));
+                expect_token(parser, Token::CloseParen)?;
+                expr
+            }
             Token::Identifier(ident) => ident.into(),
             Token::SpreadOperator => {
                 let next_token = next_token(parser)?;
@@ -58,6 +63,11 @@ impl<'a> Expr<'a> {
         let expr_or_token: Expr<'s> = match token {
             Token::OpenBracket => parse_array(parser)?.into(),
             Token::OpenBrace => parse_obj(parser)?.into(),
+            Token::OpenParen => {
+                let expr = Expr::Parenthesized(Box::new(Self::parse(parser)?));
+                expect_token(parser, Token::CloseParen)?;
+                expr
+            }
             Token::Identifier(ident) => ident.into(),
             Token::SpreadOperator => {
                 let next_token = next_token(parser)?;

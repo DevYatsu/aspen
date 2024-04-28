@@ -6,7 +6,7 @@ let x 1
 
     // let s "hello"..x.."!"
 let int 123_456
-let float 123_456.780e-3
+let float (123_456.780e-3)
 let arr [ 123_456.780e-3, 123_456, ["hello", "world", "!"], ]
 let value nil
 let object {
