@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use super::{
     comment::Comment,
     error::{AspenError, AspenResult},
@@ -11,6 +9,7 @@ use super::{
 };
 use crate::parser::{AspenParser, Token};
 use hashbrown::HashMap;
+use std::cmp::Ordering;
 
 impl<'s> Expr<'s> {
     /// Parses an expression.
@@ -310,8 +309,7 @@ impl<'s> Expr<'s> {
     ///
     /// **NOTE: We assume '(' was already consumed!**
     pub fn parse_parenthesized(parser: &mut AspenParser<'s>) -> AspenResult<Box<Expr<'s>>> {
-        let token = next_jump_multispace(parser)?;
-        let mut base_expr = Box::new(Expr::parse_with_token(parser, token)?);
+        let mut base_expr = Box::new(Expr::parse(parser)?);
         let mut bop: Option<BinaryOperator> = None; // bop for binary operator
 
         loop {
@@ -329,8 +327,6 @@ impl<'s> Expr<'s> {
                 token if bop.is_some() => {
                     let right_expr = Expr::parse_with_token(parser, token)?;
                     Expr::modify_into_binary_op(&mut base_expr, right_expr, bop.take().unwrap())?;
-
-                    bop = None;
                 }
                 _ => unreachable!(),
             }

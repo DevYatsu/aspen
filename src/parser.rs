@@ -181,12 +181,21 @@ pub fn parse_block<'s>(
             }
             Token::BinaryOperator(bop) => {
                 if let Some(stmt) = statements.last_mut() {
-                    if let Statement::Expr(base_expr) = stmt.as_mut() {
-                        let expr = Expr::parse(parser)?;
-                        Expr::modify_into_binary_op(base_expr, expr, bop)?;
-                    } else {
-                        return Err(error::AspenError::Unknown(format!("token '{}' found", bop)));
-                    }
+                    match stmt.as_mut() {
+                        Statement::Expr(base_expr)
+                        | Statement::Var(Var {
+                            value: base_expr, ..
+                        }) => {
+                            let expr = Expr::parse(parser)?;
+                            Expr::modify_into_binary_op(base_expr, expr, bop)?;
+                        }
+                        _ => {
+                            return Err(error::AspenError::Unknown(format!(
+                                "token '{}' found",
+                                bop
+                            )))
+                        }
+                    };
                 } else {
                     return Err(error::AspenError::Unknown(format!("token '{}' found", bop)));
                 };
