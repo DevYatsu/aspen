@@ -1,0 +1,8 @@
+import "math"
+
+@multiply a,b {
+    a * b
+}
+
+let a   23_333 * 8 + sum(1:100:2) * PI
+let b   sqrt( 16.0 ) + multiply(a, PI)
