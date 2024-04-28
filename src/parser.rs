@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use self::for_loop::For;
 use self::func::Func;
 use self::operator::{AssignOperator, BinaryOperator};
