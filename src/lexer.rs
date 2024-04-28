@@ -3,6 +3,8 @@ use std::fmt::Display;
 use logos::{Lexer, Logos};
 pub use rug::{Complete, Float, Integer};
 
+use crate::parser::operator::AssignOperator;
+
 pub type AspenLexer<'s> = Lexer<'s, Token<'s>>;
 
 #[derive(Logos, Debug, PartialEq, Clone)]
@@ -78,8 +80,18 @@ pub enum Token<'a> {
     #[regex("[a-zA-Z_][a-zA-Z0-9_]*!", |lex| {let raw=lex.slice();&raw[..raw.len()-1]})]
     ObjectKey(&'a str),
 
-    #[regex(r#"=|\+=|-=|\*=|\\=|%="#, |lex| lex.slice())]
-    AssignOperator(&'a str),
+    #[regex(r#"=|\+=|-=|\*=|/=|%="#, |lex| {
+        match  lex.slice() {
+            "=" => AssignOperator::Equal,
+            "+=" => AssignOperator::Plus,
+            "-=" => AssignOperator::Sub,
+            "*=" => AssignOperator::Times,
+            "/=" => AssignOperator::Divide,
+            "%=" => AssignOperator::Modulo,
+            _ => unreachable!(),
+        }
+    })]
+    AssignOperator(AssignOperator),
 
     #[regex(r#"\+|-|\*\*|\*|\\|%"#, |lex| lex.slice())]
     BinaryOperator(&'a str),

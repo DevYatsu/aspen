@@ -1,5 +1,6 @@
 use self::for_loop::For;
 use self::func::Func;
+use self::operator::AssignOperator;
 use self::utils::Block;
 use self::while_loop::While;
 use self::{comment::Comment, error::AspenResult, import::Import, value::Value, var::Var};
@@ -17,6 +18,7 @@ pub mod for_loop;
 pub mod func;
 pub mod import;
 mod macros;
+pub mod operator;
 pub mod utils;
 pub mod value;
 pub mod var;
@@ -47,6 +49,12 @@ pub enum Expr<'a> {
     SpeadId(&'a str),
 
     Parenthesized(Box<Expr<'a>>),
+
+    Assign {
+        target: Box<Expr<'a>>,
+        operator: AssignOperator,
+        value: Box<Expr<'a>>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -140,11 +148,31 @@ pub fn parse_block<'s>(
             | Token::OpenBrace
             | Token::OpenBracket
             | Token::SpreadOperator
-            | Token::String(_) => {
+            | Token::String(_)
+            | Token::Identifier(_) => {
                 if let Ok(ex) = Expr::parse_with_token(parser, token) {
                     statements.push(Box::new(ex.into()))
                 }
             }
+            Token::AssignOperator(op) => {
+                if let Some(stmt) = statements.last_mut() {
+                    let s = stmt.clone();
+                    if let Statement::Expr(base_expr) = *s {
+                        let expr = Expr::parse(parser)?;
+                        **stmt = Expr::Assign {
+                            target: Box::new(base_expr),
+                            operator: op,
+                            value: Box::new(expr),
+                        }
+                        .into();
+                    } else {
+                        return Err(error::AspenError::Unknown(format!("token '{}' found", op)));
+                    }
+                } else {
+                    return Err(error::AspenError::Unknown(format!("token '{}' found", op)));
+                };
+            }
+
             _ => {}
         }
     }

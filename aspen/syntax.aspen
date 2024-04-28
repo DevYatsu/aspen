@@ -5,6 +5,7 @@ let x 1,y 0,z 2
     // let s "hello"..x.."!"
 let int 123_456
 let float (123_456.780e-3)
+float += 100_000
 let arr [ 123_456.780e-3, (123_456), ["hello", "world", "!"],  /* array comment */ ]
 let value nil
 let object {

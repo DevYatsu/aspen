@@ -1,10 +1,3 @@
-use hashbrown::HashMap;
-
-use crate::{
-    lexer,
-    parser::{AspenParser, Token},
-};
-
 use super::{
     comment::Comment,
     error::{AspenError, AspenResult},
@@ -12,6 +5,8 @@ use super::{
     value::{parse_value, parse_value_or_return_token, Value},
     Expr,
 };
+use crate::parser::{AspenParser, Token};
+use hashbrown::HashMap;
 
 impl<'a> Expr<'a> {
     /// Parses an expression.
