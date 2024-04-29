@@ -87,7 +87,7 @@ pub struct AspenParser<'s> {
     comments: Container<Comment<'s>>,
 }
 
-pub fn parse_aspen<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
+pub fn parse_aspen(parser: &mut AspenParser<'_>) -> AspenResult<()> {
     let result = parse_block(parser, None)?;
 
     parser.body = result;
@@ -304,17 +304,8 @@ impl<'a> AspenParser<'a> {
             comments: vec![],
         }
     }
-    pub fn statements(&self) -> Container<Statement<'a>> {
-        self.body.statements()
-    }
-    pub fn comments(&self) -> Container<Comment<'a>> {
-        self.comments.clone()
-    }
     pub fn add_comment(&mut self, comment: Comment<'a>) {
         self.comments.push(Box::new(comment))
-    }
-    pub fn add_statement(&mut self, statement: Statement<'a>) {
-        self.body.add_statement(statement)
     }
 }
 

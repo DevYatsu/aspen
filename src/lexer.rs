@@ -53,9 +53,9 @@ pub enum Token<'a> {
     #[token(":")]
     Range,
 
-    #[regex(r"//[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
+    #[regex(r"//[^\n]*", |lex| let raw=lex.slice();raw[2..=raw.len()-1].trim())]
     LineComment(&'a str),
-    #[regex(r"///[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
+    #[regex(r"///[^\n]*", |lex| let raw=lex.slice();raw[2..=raw.len()-1].trim())]
     DocComment(&'a str),
     #[regex(r"/\*([^*]|\*[^/])*\*/", |lex| let raw=lex.slice();&raw[2..=raw.len()-3])]
     MultiLineComment(&'a str),

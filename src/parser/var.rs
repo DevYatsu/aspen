@@ -51,7 +51,7 @@ impl<'a> Var<'a> {
 
         let value = Box::new(Expr::parse(parser)?);
 
-        return Ok(Var { variables, value }.into());
+        Ok(Var { variables, value }.into())
     }
 
     pub fn parse_several_vars_or_complex_expr_or_newline(

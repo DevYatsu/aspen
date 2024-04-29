@@ -12,7 +12,7 @@ pub struct Block<'a> {
     statements: Container<Statement<'a>>,
 }
 
-pub fn expect_space<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
+pub fn expect_space(parser: &mut AspenParser<'_>) -> AspenResult<()> {
     let token = next_token(parser)?;
 
     match token {
@@ -38,7 +38,7 @@ pub fn expect_token<'s>(
     Ok(())
 }
 
-pub fn expect_newline<'s>(parser: &mut AspenParser<'s>) -> AspenResult<()> {
+pub fn expect_newline(parser: &mut AspenParser<'_>) -> AspenResult<()> {
     let token = next_token(parser)?;
 
     match token {
@@ -63,7 +63,7 @@ pub fn next_token<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Token<'s>> {
 
             Ok(token)
         }
-        None => return Err(AspenError::Eof),
+        None => Err(AspenError::Eof),
     }
 }
 
@@ -94,15 +94,6 @@ pub fn next_jump_space<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Token<'s
 impl<'a> Block<'a> {
     pub fn new(statements: Container<Statement<'a>>) -> Self {
         Self { statements }
-    }
-    pub fn statements(&self) -> Container<Statement<'a>> {
-        self.statements.clone()
-    }
-    pub fn add_statement(&mut self, stmt: Statement<'a>) {
-        self.statements.push(Box::new(stmt))
-    }
-    pub fn extend_statements(&mut self, statements: Container<Statement<'a>>) {
-        self.statements.extend(statements)
     }
 }
 

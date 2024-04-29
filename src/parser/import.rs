@@ -18,18 +18,15 @@ impl<'a> Import<'a> {
     /// **NOTE: We assume "import" is already consumed by the lexer!**
     pub fn parse<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Statement<'s>> {
         expect_space(parser)?;
-        let token = next_jump_multispace(parser)?;
 
-        match token {
+        match next_jump_multispace(parser)? {
             Token::String(name) => Ok(Import { name }.into()),
             _ => Err(AspenError::Expected("an import value".to_owned())),
         }
     }
 
     pub fn parse_after_comma(parser: &mut AspenParser<'a>) -> AspenResult<Statement<'a>> {
-        let token = next_jump_multispace(parser)?;
-
-        match token {
+        match next_jump_multispace(parser)? {
             Token::String(name) => Ok(Import { name }.into()),
             _ => Err(AspenError::Expected("an import value".to_owned())),
         }
@@ -40,8 +37,7 @@ impl<'a> Import<'a> {
         statements: &mut Container<Statement<'a>>,
     ) -> AspenResult<()> {
         loop {
-            let next = next_jump_space(parser)?;
-            match next {
+            match next_jump_space(parser)? {
                 Token::Newline => return Ok(()),
                 Token::Comma => {
                     let stmt = Import::parse_after_comma(parser)?;

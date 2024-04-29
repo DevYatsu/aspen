@@ -24,6 +24,6 @@ impl<'a> Deref for Comment<'a> {
     type Target = Comment<'a>;
 
     fn deref(&self) -> &Self::Target {
-        &self
+        self
     }
 }

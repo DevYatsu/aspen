@@ -30,8 +30,7 @@ impl<'a> Return<'a> {
         statements: &mut Container<Statement<'a>>,
     ) -> AspenResult<()> {
         loop {
-            let next = next_jump_space(parser)?;
-            match next {
+            match next_jump_space(parser)? {
                 Token::Newline => return Ok(()),
                 Token::Comma => {
                     let expr = Return::parse_after_comma(parser)?;

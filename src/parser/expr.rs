@@ -4,9 +4,10 @@ use super::{
     func::Func,
     operator::BinaryOperator,
     utils::{expect_token, next_jump_multispace, next_token, TokenOption},
-    value::{parse_value, parse_value_or_return_token, Value},
+    value::{parse_value, Value},
     Expr,
 };
+use crate::parser::value::parse_value_or_return_token;
 use crate::parser::{AspenParser, Token};
 use hashbrown::HashMap;
 use std::cmp::Ordering;
@@ -113,13 +114,10 @@ impl<'s> Expr<'s> {
         let args = Func::parse_call_args(parser)?;
         match base_expr.as_mut() {
             Expr::Id(_) | Expr::FuncCall { .. } => {
-                *base_expr = Box::new(
-                    Expr::FuncCall {
-                        callee: base_expr.clone(),
-                        args,
-                    }
-                    .into(),
-                );
+                *base_expr = Box::new(Expr::FuncCall {
+                    callee: base_expr.clone(),
+                    args,
+                });
             }
             Expr::Binary { rhs, .. } => {
                 rhs.add_func_call_to_most_rhs(args);
@@ -133,17 +131,14 @@ impl<'s> Expr<'s> {
                     rhs.add_func_call_to_most_rhs(args);
                 }
                 Expr::Id(_) | Expr::FuncCall { .. } => {
-                    *base_expr = Box::new(
-                        Expr::Assign {
-                            target: target.clone(),
-                            operator: operator.to_owned(),
-                            value: Box::new(Expr::FuncCall {
-                                callee: value.clone(),
-                                args,
-                            }),
-                        }
-                        .into(),
-                    );
+                    *base_expr = Box::new(Expr::Assign {
+                        target: target.clone(),
+                        operator: operator.to_owned(),
+                        value: Box::new(Expr::FuncCall {
+                            callee: value.clone(),
+                            args,
+                        }),
+                    });
                 }
                 _ => (),
             },
@@ -201,33 +196,27 @@ impl<'s> Expr<'s> {
         match base_expr.as_mut() {
             Expr::Range { start, end, step } => {
                 if step.is_some() {
-                    return Err(AspenError::Unknown(format!(
-                        "token ':' found, a Range has three parts: start:end:step"
-                    )));
+                    return Err(AspenError::Unknown(
+                        "token ':' found, a Range has three parts: start:end:step".to_owned(),
+                    ));
                 }
 
-                *base_expr = Box::new(
-                    Expr::Range {
-                        start: start.clone(),
-                        end: end.clone(),
-                        step: Some(Box::new(second_expr)),
-                    }
-                    .into(),
-                );
+                *base_expr = Box::new(Expr::Range {
+                    start: start.clone(),
+                    end: end.clone(),
+                    step: Some(Box::new(second_expr)),
+                });
             }
             Expr::Id(_)
             | Expr::Binary { .. }
             | Expr::FuncCall { .. }
             | Expr::Value(_)
             | Expr::Parenthesized(_) => {
-                *base_expr = Box::new(
-                    Expr::Range {
-                        start: base_expr.clone(),
-                        end: Box::new(second_expr),
-                        step: None,
-                    }
-                    .into(),
-                );
+                *base_expr = Box::new(Expr::Range {
+                    start: base_expr.clone(),
+                    end: Box::new(second_expr),
+                    step: None,
+                });
             }
             Expr::Assign {
                 ref mut value,
@@ -236,9 +225,9 @@ impl<'s> Expr<'s> {
             } => match value.as_mut() {
                 Expr::Range { start, end, step } => {
                     if step.is_some() {
-                        return Err(AspenError::Unknown(format!(
-                            "token ':' found, a Range has three parts: start:end:step"
-                        )));
+                        return Err(AspenError::Unknown(
+                            "token ':' found, a Range has three parts: start:end:step".to_owned(),
+                        ));
                     }
 
                     *base_expr = Box::new(Expr::Assign {
@@ -315,14 +304,11 @@ impl<'s> Expr<'s> {
                 *base_expr = Expr::Assign {
                     target: target.clone(),
                     operator: operator.clone(),
-                    value: Box::new(
-                        Expr::Binary {
-                            lhs: value.clone(),
-                            operator: bop,
-                            rhs: base_expr.clone(),
-                        }
-                        .into(),
-                    ),
+                    value: Box::new(Expr::Binary {
+                        lhs: value.clone(),
+                        operator: bop,
+                        rhs: base_expr.clone(),
+                    }),
                 }
                 .into();
             }
@@ -410,11 +396,11 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
             }
             token if !awaits_comma => {
                 let expr = Expr::parse_with_token(parser, token)?;
-                arr.push(Box::new(expr.into()));
+                arr.push(Box::new(expr));
                 awaits_comma = true;
             }
             mut token if awaits_comma => {
-                let mut base_expr = arr.last_mut().unwrap();
+                let base_expr = arr.last_mut().unwrap();
                 let mut bop: Option<BinaryOperator> = None;
 
                 loop {
@@ -423,7 +409,7 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
                             Token::BinaryOperator(op) => {
                                 bop = Some(op);
                             }
-                            Token::OpenParen => Expr::modify_into_fn_call(parser, &mut base_expr)?,
+                            Token::OpenParen => Expr::modify_into_fn_call(parser, base_expr)?,
                             Token::Comma => {
                                 awaits_comma = false;
                                 break;
@@ -436,7 +422,7 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
                         token if bop.is_some() => {
                             let right_expr = Expr::parse_with_token(parser, token)?;
                             Expr::modify_into_binary_op(
-                                &mut base_expr,
+                                base_expr,
                                 right_expr,
                                 bop.take().unwrap(),
                             )?;
@@ -534,7 +520,7 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, B
                 parser.add_comment(Comment::new(val, start, end))
             }
             _ if key.is_some() => {
-                value = Some(Box::new(Expr::parse_with_token(parser, token)?.into()));
+                value = Some(Box::new(Expr::parse_with_token(parser, token)?));
             }
             _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
         };
@@ -556,20 +542,20 @@ impl<'a> From<TokenOption<'a, Value<'a>>> for TokenOption<'a, Expr<'a>> {
     }
 }
 
-impl<'a> Into<Expr<'a>> for Vec<Box<Expr<'a>>> {
-    fn into(self) -> Expr<'a> {
-        Expr::Array(self)
+impl<'a> From<Vec<Box<Expr<'a>>>> for Expr<'a> {
+    fn from(val: Vec<Box<Expr<'a>>>) -> Self {
+        Expr::Array(val)
     }
 }
 
-impl<'a> Into<Expr<'a>> for HashMap<&'a str, Box<Expr<'a>>> {
-    fn into(self) -> Expr<'a> {
-        Expr::Object(self)
+impl<'a> From<HashMap<&'a str, Box<Expr<'a>>>> for Expr<'a> {
+    fn from(val: HashMap<&'a str, Box<Expr<'a>>>) -> Self {
+        Expr::Object(val)
     }
 }
 
-impl<'a> Into<Expr<'a>> for &'a str {
-    fn into(self) -> Expr<'a> {
-        Expr::Id(self)
+impl<'a> From<&'a str> for Expr<'a> {
+    fn from(val: &'a str) -> Self {
+        Expr::Id(val)
     }
 }

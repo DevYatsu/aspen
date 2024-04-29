@@ -18,7 +18,7 @@ pub enum Value<'a> {
 /// Parses a value.
 ///
 /// **NOTE: We assume the current token is a value!**
-pub fn parse_value<'s>(token: Token<'s>) -> AspenResult<Value<'s>> {
+pub fn parse_value(token: Token<'_>) -> AspenResult<Value<'_>> {
     let value = match token {
         Token::Bool(b) => b.into(),
         Token::String(s) => s.into(),
@@ -34,9 +34,7 @@ pub fn parse_value<'s>(token: Token<'s>) -> AspenResult<Value<'s>> {
 /// Parses a value or returns the found token.
 ///
 /// **NOTE: We assume the current token is a value!**
-pub fn parse_value_or_return_token<'s>(
-    token: Token<'s>,
-) -> AspenResult<TokenOption<'s, Value<'s>>> {
+pub fn parse_value_or_return_token(token: Token<'_>) -> AspenResult<TokenOption<'_, Value<'_>>> {
     let value: Value<'_> = match token {
         Token::Bool(b) => b.into(),
         Token::String(s) => s.into(),
@@ -56,23 +54,23 @@ impl<'a> From<Value<'a>> for TokenOption<'a, Value<'a>> {
     }
 }
 
-impl<'a> Into<Value<'a>> for bool {
-    fn into(self) -> Value<'a> {
-        Value::Bool(self)
+impl<'a> From<bool> for Value<'a> {
+    fn from(value: bool) -> Self {
+        Value::Bool(value)
     }
 }
-impl<'a> Into<Value<'a>> for &'a str {
-    fn into(self) -> Value<'a> {
-        Value::Str(self)
+impl<'a> From<&'a str> for Value<'a> {
+    fn from(value: &'a str) -> Self {
+        Value::Str(value)
     }
 }
-impl<'a> Into<Value<'a>> for Integer {
-    fn into(self) -> Value<'a> {
-        Value::Int(self)
+impl<'a> From<Integer> for Value<'a> {
+    fn from(value: Integer) -> Self {
+        Value::Int(value)
     }
 }
-impl<'a> Into<Value<'a>> for Float {
-    fn into(self) -> Value<'a> {
-        Value::Float(self)
+impl<'a> From<Float> for Value<'a> {
+    fn from(value: Float) -> Self {
+        Value::Float(value)
     }
 }

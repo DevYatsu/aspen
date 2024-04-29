@@ -23,15 +23,15 @@ fn main() -> Result<(), AspenError> {
     let (n, see_tokens) = args
         .get(1)
         .map(|arg| {
-            if arg.starts_with("n=") {
-                (arg[2..].parse::<usize>().unwrap(), false)
+            if let Some(v) = arg.strip_prefix("n=") {
+                (v.parse::<usize>().unwrap(), false)
             } else {
                 (1, true)
             }
         })
         .unwrap_or((1, false));
 
-    let content = fs::read_to_string(&format!("./aspen/{}", names[choice]))?.repeat(n);
+    let content = fs::read_to_string(format!("./aspen/{}", names[choice]))?.repeat(n);
     let mut parser: parser::AspenParser<'_> = Token::lexer(&content).into();
 
     match see_tokens {
@@ -45,8 +45,8 @@ fn main() -> Result<(), AspenError> {
             let start = Instant::now();
             parse_aspen(&mut parser)?;
 
-            println!("stmts: {:?}", parser.statements());
-            println!("comments: {:?}", parser.comments());
+            // println!("stmts: {:?}", parser.statements());
+            // println!("comments: {:?}", parser.comments());
             println!("Content length: {}", content.len());
             println!("Lexing took {} ms!", start.elapsed().as_millis());
         }
@@ -54,3 +54,26 @@ fn main() -> Result<(), AspenError> {
 
     Ok(())
 }
+
+// fn run_with_f_name() -> Result<(), AspenError> {
+//     let args = args().collect::<Vec<String>>();
+//     let mut name = args.get(1);
+
+//     if let None = name {
+//         println!("Missing a file name");
+//         return Ok(());
+//     }
+
+//     let content = fs::read_to_string(name.take().unwrap())?.repeat(50000);
+//     let mut parser: parser::AspenParser<'_> = Token::lexer(&content).into();
+
+//     let start = Instant::now();
+//     parse_aspen(&mut parser)?;
+
+//     // println!("stmts: {:?}", parser.statements());
+//     // println!("comments: {:?}", parser.comments());
+//     println!("Content length: {}", content.len());
+//     println!("Lexing took {} ms!", start.elapsed().as_millis());
+
+//     Ok(())
+// }
