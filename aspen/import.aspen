@@ -1,0 +1,3 @@
+import "std", "os", "fs", "http"
+// 30ms to parse 50k times this file in release mode
+// Content Length: 5 750 000
