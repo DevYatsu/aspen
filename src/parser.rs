@@ -2,6 +2,7 @@ use self::error::AspenError;
 use self::for_loop::For;
 use self::func::Func;
 use self::operator::{AssignOperator, BinaryOperator};
+use self::return_stmt::Return;
 use self::utils::Block;
 use self::while_loop::While;
 use self::{comment::Comment, error::AspenResult, import::Import, value::Value, var::Var};
@@ -17,6 +18,7 @@ pub mod func;
 pub mod import;
 mod macros;
 pub mod operator;
+pub mod return_stmt;
 pub mod utils;
 pub mod value;
 pub mod var;
@@ -30,6 +32,7 @@ pub enum Statement<'a> {
     Expr(Box<Expr<'a>>),
     For(For<'a>),
     While(While<'a>),
+    Return(Return<'a>),
 }
 
 pub type Container<T> = Vec<Box<T>>;
@@ -103,7 +106,12 @@ pub fn parse_block<'s>(
 
                 Import::parse_several_or_newline(parser, &mut statements)?;
             }
+            Token::Return => {
+                let stmt = Return::parse(parser)?;
+                statements.push(Box::new(stmt));
 
+                Return::parse_several_or_complex_expr_or_newline(parser, &mut statements)?;
+            }
             Token::Let => {
                 let stmt = Var::parse(parser)?;
                 statements.push(Box::new(stmt));
@@ -111,8 +119,8 @@ pub fn parse_block<'s>(
                 Var::parse_several_vars_or_complex_expr_or_newline(parser, &mut statements)?;
             }
             Token::Comma => {
-                if let Some(stmt) = statements.last() {
-                    match **stmt {
+                if let Some(stmt) = statements.last_mut() {
+                    match stmt.as_mut() {
                         Statement::Var(_) => {
                             let stmt = Var::parse_after_comma(parser)?;
                             statements.push(Box::new(stmt))
@@ -120,6 +128,10 @@ pub fn parse_block<'s>(
                         Statement::Import(_) => {
                             let stmt = Import::parse_after_comma(parser)?;
                             statements.push(Box::new(stmt))
+                        }
+                        Statement::Return(Return(vec)) => {
+                            let stmt = Return::parse_after_comma(parser)?;
+                            vec.push(Box::new(stmt))
                         }
                         _ => return Err(error::AspenError::Unknown("token ',' found".to_owned())),
                     };
@@ -192,6 +204,11 @@ pub fn parse_block<'s>(
                             let expr = Expr::parse(parser)?;
                             Expr::modify_into_binary_op(base_expr, expr, bop)?;
                         }
+                        Statement::Return(Return(vec)) => {
+                            let last = vec.last_mut().unwrap();
+                            let expr = Expr::parse(parser)?;
+                            Expr::modify_into_binary_op(last, expr, bop)?;
+                        }
                         _ => {
                             return Err(error::AspenError::Unknown(format!(
                                 "token '{}' found",
@@ -210,9 +227,12 @@ pub fn parse_block<'s>(
                             Expr::modify_into_fn_call(parser, base_expr)?;
                             continue;
                         }
-                        Statement::Var(var) => {
-                            let Var { value, .. } = var;
+                        Statement::Var(Var { value, .. }) => {
                             Expr::modify_into_fn_call(parser, value)?;
+                            continue;
+                        }
+                        Statement::Return(Return(vars)) => {
+                            Expr::modify_into_fn_call(parser, vars.last_mut().unwrap())?;
                             continue;
                         }
                         _ => (),

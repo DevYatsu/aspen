@@ -319,9 +319,7 @@ impl<'s> Expr<'s> {
         let mut bop: Option<BinaryOperator> = None; // bop for binary operator
 
         loop {
-            let token = next_jump_multispace(parser)?;
-
-            match token {
+            match next_jump_multispace(parser)? {
                 token if bop.is_none() => match token {
                     Token::BinaryOperator(op) => {
                         bop = Some(op);
@@ -348,30 +346,55 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
     let mut awaits_comma = false;
 
     loop {
-        let expr_or_token = Expr::parse_or_return_token(parser)?;
-
-        match expr_or_token {
-            TokenOption::Some(expr) if !awaits_comma => {
+        match next_jump_multispace(parser)? {
+            Token::Comma if awaits_comma => awaits_comma = false,
+            Token::CloseBracket => return Ok(arr),
+            Token::LineComment(val) | Token::DocComment(val) | Token::MultiLineComment(val) => {
+                let start = parser.lexer.span().start;
+                let end = parser.lexer.span().end;
+                parser.add_comment(Comment::new(val, start, end))
+            }
+            token if !awaits_comma => {
+                let expr = Expr::parse_with_token(parser, token)?;
                 arr.push(Box::new(expr.into()));
                 awaits_comma = true;
             }
-            TokenOption::Token(token) => match token {
-                Token::CloseBracket => return Ok(arr),
-                Token::Comma if awaits_comma => awaits_comma = false,
-                Token::LineComment(val) | Token::DocComment(val) | Token::MultiLineComment(val) => {
-                    let start = parser.lexer.span().start;
-                    let end = parser.lexer.span().end;
-                    parser.add_comment(Comment::new(val, start, end))
+            mut token if awaits_comma => {
+                let mut base_expr = arr.last_mut().unwrap();
+                let mut bop: Option<BinaryOperator> = None;
+
+                loop {
+                    match token {
+                        token if bop.is_none() => match token {
+                            Token::BinaryOperator(op) => {
+                                bop = Some(op);
+                            }
+                            Token::OpenParen => Expr::modify_into_fn_call(parser, &mut base_expr)?,
+                            Token::Comma => {
+                                awaits_comma = false;
+                                break;
+                            }
+                            Token::CloseBracket => return Ok(arr),
+                            _ => {
+                                return Err(AspenError::Expected("a close bracket ']'".to_owned()))
+                            }
+                        },
+                        token if bop.is_some() => {
+                            let right_expr = Expr::parse_with_token(parser, token)?;
+                            Expr::modify_into_binary_op(
+                                &mut base_expr,
+                                right_expr,
+                                bop.take().unwrap(),
+                            )?;
+                        }
+                        _ => unreachable!(),
+                    }
+
+                    token = next_jump_multispace(parser)?;
                 }
-                _ if awaits_comma => {
-                    return Err(AspenError::Expected("a close bracket '}'".to_owned()))
-                }
-                _ if !awaits_comma => {
-                    return Err(AspenError::Expected("a value <expr>".to_owned()))
-                }
-                _ => unreachable!("All cases are covered up there!"),
-            },
-            _ => return Err(AspenError::Expected("a close bracket '}'".to_owned())),
+            }
+
+            _ => unreachable!("All cases are covered up there!"),
         };
     }
 }

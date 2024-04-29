@@ -7,7 +7,7 @@ use crate::parser::{AspenParser, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Var<'a> {
-    pub name: &'a str,
+    pub variables: Vec<&'a str>,
     pub value: Box<Expr<'a>>,
 }
 
@@ -17,31 +17,41 @@ impl<'a> Var<'a> {
     /// **NOTE: We assume "let" is already consumed by the parser!**
     pub fn parse(parser: &mut AspenParser<'a>) -> AspenResult<Statement<'a>> {
         expect_space(parser)?;
-        let token = next_jump_multispace(parser)?;
 
-        let name = match token {
-            Token::Identifier(name) => name,
-            _ => return Err(AspenError::Expected("an import value".to_owned())),
-        };
-
-        expect_space(parser)?;
-        let value = Box::new(Expr::parse(parser)?);
-
-        Ok(Var { name, value }.into())
+        Self::parse_after_comma(parser)
     }
 
     pub fn parse_after_comma(parser: &mut AspenParser<'a>) -> AspenResult<Statement<'a>> {
-        let token = next_jump_multispace(parser)?;
+        let mut variables = vec![];
 
-        let name = match token {
-            Token::Identifier(name) => name,
-            _ => return Err(AspenError::Expected("a variable declaration".to_owned())),
+        match next_jump_multispace(parser)? {
+            Token::Identifier(name) => variables.push(name),
+            Token::OpenBracket => {
+                match next_jump_multispace(parser)? {
+                    Token::Identifier(name) => variables.push(name),
+                    _ => return Err(AspenError::Expected("an import value".to_owned())),
+                }
+
+                loop {
+                    match next_jump_multispace(parser)? {
+                        Token::Comma => {
+                            match next_jump_multispace(parser)? {
+                                Token::Identifier(name) => variables.push(name),
+                                Token::CloseBracket => break,
+                                _ => return Err(AspenError::Expected("an identifier".to_owned())),
+                            };
+                        }
+                        Token::CloseBracket => break,
+                        _ => return Err(AspenError::Expected("an identifier".to_owned())),
+                    }
+                }
+            }
+            _ => return Err(AspenError::Expected("an identifier".to_owned())),
         };
 
-        expect_space(parser)?;
         let value = Box::new(Expr::parse(parser)?);
 
-        Ok(Var { name, value }.into())
+        return Ok(Var { variables, value }.into());
     }
 
     pub fn parse_several_vars_or_complex_expr_or_newline(
