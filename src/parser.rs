@@ -29,7 +29,10 @@ pub enum Statement<'a> {
     Var(Var<'a>),
     Import(Import<'a>),
     Func(Func<'a>),
+
+    // change to Expr{value: Box<Expr<'a>>, is_returned: bool} to handle implicit return in the future, when followed by ';' then is not returned
     Expr(Box<Expr<'a>>),
+
     For(For<'a>),
     While(While<'a>),
     Return(Return<'a>),
