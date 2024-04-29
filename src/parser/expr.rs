@@ -94,6 +94,16 @@ impl<'s> Expr<'s> {
             args,
         };
     }
+    fn add_array_indexing_to_most_rhs(&mut self, indexer: Box<Expr<'s>>) {
+        let mut expr = self;
+        while let Expr::Binary { rhs, .. } = expr {
+            expr = rhs;
+        }
+        *expr = Expr::ArrayIndexing {
+            indexed: Box::new(expr.clone()),
+            indexer,
+        };
+    }
 
     /// Function to call after a '(' is consumed when the expression is expected to be a function call.
     pub fn modify_into_fn_call(
@@ -138,6 +148,44 @@ impl<'s> Expr<'s> {
                 _ => (),
             },
             _ => return Err(AspenError::Unknown("token '(' found".to_owned())),
+        };
+
+        Ok(())
+    }
+
+    /// Function to call after a '[' is consumed when the expression is expected to be an array indexing.
+    pub fn modify_into_array_indexing(
+        parser: &mut AspenParser<'s>,
+        base_expr: &mut Box<Expr<'s>>,
+    ) -> AspenResult<()> {
+        let expr = Expr::parse_until(parser, Token::CloseBracket)?;
+        match base_expr.as_mut() {
+            Expr::Id(_) | Expr::FuncCall { .. } => {
+                *base_expr = Box::new(Expr::ArrayIndexing {
+                    indexed: base_expr.clone(),
+                    indexer: expr,
+                });
+            }
+            Expr::Binary { rhs, .. } => rhs.add_array_indexing_to_most_rhs(expr),
+            Expr::Assign {
+                value,
+                target,
+                operator,
+            } => match value.as_mut() {
+                Expr::Binary { rhs, .. } => rhs.add_array_indexing_to_most_rhs(expr),
+                Expr::Id(_) | Expr::FuncCall { .. } => {
+                    *base_expr = Box::new(Expr::Assign {
+                        target: target.clone(),
+                        operator: operator.clone(),
+                        value: Box::new(Expr::ArrayIndexing {
+                            indexed: value.clone(),
+                            indexer: expr,
+                        }),
+                    });
+                }
+                _ => return Err(AspenError::Unknown("token found: '['".to_owned())),
+            },
+            _ => return Err(AspenError::Unknown("token found: '['".to_owned())),
         };
 
         Ok(())

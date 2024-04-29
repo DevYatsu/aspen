@@ -73,6 +73,11 @@ pub enum Expr<'a> {
         end: Box<Expr<'a>>,
         step: Option<Box<Expr<'a>>>,
     },
+
+    ArrayIndexing {
+        indexed: Box<Expr<'a>>,
+        indexer: Box<Expr<'a>>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -166,13 +171,11 @@ pub fn parse_block<'s>(
             _ if stop_on.is_some() && &token == stop_on.as_ref().unwrap() => {
                 return Ok(Block::new(statements));
             }
-
             Token::Nil
             | Token::Bool(_)
             | Token::Float(_)
             | Token::Int(_)
             | Token::OpenBrace
-            | Token::OpenBracket
             | Token::SpreadOperator
             | Token::String(_)
             | Token::Identifier(_) => {
@@ -262,6 +265,22 @@ pub fn parse_block<'s>(
                 }
 
                 return Err(AspenError::Unknown("token ':' found".to_owned()));
+            }
+            Token::OpenBracket => {
+                if let Some(stmt) = statements.last_mut() {
+                    match stmt.as_mut() {
+                        Statement::Expr(base_expr) => {
+                            Expr::modify_into_array_indexing(parser, base_expr)?;
+                        }
+                        Statement::Var(Var { value, .. }) => {
+                            Expr::modify_into_array_indexing(parser, value)?;
+                        }
+                        Statement::Return(Return(vars)) => {
+                            Expr::modify_into_array_indexing(parser, vars.last_mut().unwrap())?;
+                        }
+                        _ => return Err(AspenError::Unknown("token '[' found".to_owned())),
+                    };
+                }
             }
             _ => {}
         }
