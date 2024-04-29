@@ -373,6 +373,7 @@ impl<'s> Expr<'s> {
                         bop = Some(op);
                     }
                     Token::OpenParen => Expr::modify_into_fn_call(parser, &mut base_expr)?,
+                    Token::OpenBracket => Expr::modify_into_array_indexing(parser, &mut base_expr)?,
                     token if token == stop_token => return Ok(base_expr),
                     _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
                 },
