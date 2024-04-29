@@ -1,7 +1,7 @@
 use super::{
     error::{AspenError, AspenResult},
     parse_block,
-    utils::{expect_space, next_jump_multispace, next_token, Block},
+    utils::{next_jump_multispace, next_token, Block},
     Expr, Statement,
 };
 use crate::{
@@ -29,7 +29,6 @@ impl<'a> Func<'a> {
     ///
     /// **NOTE: We assume the function name is already consumed by the parser!**
     pub fn parse<'s>(parser: &mut AspenParser<'s>, name: &'s str) -> AspenResult<Statement<'s>> {
-        expect_space(parser)?;
         let arguments = Func::parse_declaration_args(parser)?;
         let body = Box::new(parse_block(parser, Some(Token::CloseBrace))?);
 

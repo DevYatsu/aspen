@@ -39,7 +39,7 @@ pub enum Expr<'a> {
     Value(Value<'a>),
 
     Array(Container<Expr<'a>>),
-    Object(HashMap<&'a str, Expr<'a>>),
+    Object(HashMap<&'a str, Box<Expr<'a>>>),
 
     Id(&'a str),
     SpeadId(&'a str),
@@ -220,7 +220,7 @@ pub fn parse_block<'s>(
                 }
 
                 let expr = Expr::parse_parenthesized(parser)?;
-                statements.push(Box::new(Statement::Expr(expr)))
+                statements.push(Box::new(Statement::Expr(Box::new(expr))))
             }
             Token::Range => {
                 if let Some(stmt) = statements.last_mut() {

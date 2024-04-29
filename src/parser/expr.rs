@@ -30,11 +30,7 @@ impl<'s> Expr<'s> {
         let expr = match token {
             Token::OpenBracket => parse_array(parser)?.into(),
             Token::OpenBrace => parse_obj(parser)?.into(),
-            Token::OpenParen => {
-                let expr = Expr::Parenthesized(Box::new(Self::parse(parser)?));
-                expect_token(parser, Token::CloseParen)?;
-                expr
-            }
+            Token::OpenParen => Expr::parse_parenthesized(parser)?,
             Token::Identifier(ident) => ident.into(),
             Token::SpreadOperator => {
                 let next_token = next_token(parser)?;
@@ -307,8 +303,18 @@ impl<'s> Expr<'s> {
 
     /// Parses a parenthesized expr.
     ///
-    /// **NOTE: We assume '(' was already consumed!**
-    pub fn parse_parenthesized(parser: &mut AspenParser<'s>) -> AspenResult<Box<Expr<'s>>> {
+    /// **NOTE: We assume '(' was already consumed! And parses the ending ')'**
+    pub fn parse_parenthesized(parser: &mut AspenParser<'s>) -> AspenResult<Expr<'s>> {
+        Ok(Expr::Parenthesized(Self::parse_until(
+            parser,
+            Token::CloseParen,
+        )?))
+    }
+
+    pub fn parse_until(
+        parser: &mut AspenParser<'s>,
+        stop_token: Token<'s>,
+    ) -> AspenResult<Box<Expr<'s>>> {
         let mut base_expr = Box::new(Expr::parse(parser)?);
         let mut bop: Option<BinaryOperator> = None; // bop for binary operator
 
@@ -321,7 +327,7 @@ impl<'s> Expr<'s> {
                         bop = Some(op);
                     }
                     Token::OpenParen => Expr::modify_into_fn_call(parser, &mut base_expr)?,
-                    Token::CloseParen => return Ok(base_expr),
+                    token if token == stop_token => return Ok(base_expr),
                     _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
                 },
                 token if bop.is_some() => {
@@ -373,7 +379,7 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
 /// Parses an object.
 ///
 /// **NOTE: We assume "{" was already consumed!**
-fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, Expr<'s>>> {
+fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, Box<Expr<'s>>>> {
     let mut hash = HashMap::new();
     let mut key = None;
     let mut value = None;
@@ -386,6 +392,10 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, E
             Token::ObjectKey(k) if key.is_none() => {
                 key = Some(k);
             }
+            Token::ObjectKey(k) if key.is_some() => {
+                hash.insert(key.take().unwrap(), value.clone().take().unwrap());
+                key = Some(k);
+            }
             Token::CloseBrace if value.is_some() => {
                 hash.insert(key.take().unwrap(), value.take().unwrap());
                 return Ok(hash);
@@ -396,25 +406,31 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, E
             Token::Comma if value.is_some() => {
                 hash.insert(key.take().unwrap(), value.take().unwrap());
             }
-            Token::OpenParen => {
-                let expr = Expr::Parenthesized(Box::new(Expr::parse(parser)?));
-                expect_token(parser, Token::CloseParen)?;
-                value = Some(expr)
-            }
             Token::OpenBrace if key.is_some() => {
                 let object = parse_obj(parser)?;
-                value = Some(object.into());
+                value = Some(Box::new(object.into()));
+            }
+            Token::OpenParen if value.is_some() => {
+                let mut val = value.take().unwrap();
+                Expr::modify_into_fn_call(parser, &mut val)?;
+                value = Some(val);
             }
             Token::OpenBracket if key.is_some() => {
                 let sub_array = parse_array(parser)?;
-                value = Some(sub_array.into());
+                value = Some(Box::new(sub_array.into()));
             }
             Token::Identifier(ident) if key.is_some() => {
-                value = Some(ident.into());
+                value = Some(Box::new(ident.into()));
             }
             Token::Identifier(ident) => {
                 key = Some(ident);
-                value = Some(ident.into());
+                value = Some(Box::new(ident.into()));
+            }
+            Token::BinaryOperator(op) if key.is_some() => {
+                let expr = Expr::parse(parser)?;
+                let mut val = value.take().unwrap();
+                Expr::modify_into_binary_op(&mut val, expr, op)?;
+                value = Some(val);
             }
             Token::SpreadOperator if key.is_some() => return Err(AspenError::Expected(
                 "an object or an array: either do {..<spread_variable>} or [...<spread_variable>]"
@@ -426,7 +442,7 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, E
                 match next_token {
                     Token::Identifier(ident) => {
                         key = Some(ident);
-                        value = Some(Expr::SpeadId(ident));
+                        value = Some(Box::new(Expr::SpeadId(ident)));
                     }
                     _ => {
                         return Err(AspenError::Expected(
@@ -441,7 +457,7 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, E
                 parser.add_comment(Comment::new(val, start, end))
             }
             _ if key.is_some() => {
-                value = Some(parse_value(token)?.into());
+                value = Some(Box::new(Expr::parse_with_token(parser, token)?.into()));
             }
             _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
         };
@@ -469,7 +485,7 @@ impl<'a> Into<Expr<'a>> for Vec<Box<Expr<'a>>> {
     }
 }
 
-impl<'a> Into<Expr<'a>> for HashMap<&'a str, Expr<'a>> {
+impl<'a> Into<Expr<'a>> for HashMap<&'a str, Box<Expr<'a>>> {
     fn into(self) -> Expr<'a> {
         Expr::Object(self)
     }

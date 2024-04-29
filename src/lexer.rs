@@ -47,6 +47,8 @@ pub enum Token<'a> {
 
     #[token("import")]
     Import,
+    #[token("return")]
+    Return,
     #[token("let")]
     Let,
     #[token("for")]
@@ -74,9 +76,9 @@ pub enum Token<'a> {
     #[regex("true|false", |lex| lex.slice() == "true")]
     Bool(bool),
 
-    #[regex(r"[-+]?\d+(_?\d)*", |lex| Integer::parse(lex.slice()).unwrap(/* the number is valid */).complete())]
+    #[regex(r"-?\d+(_?\d)*", |lex| Integer::parse(lex.slice()).unwrap(/* the number is valid */).complete())]
     Int(Integer),
-    #[regex(r"[-+]?\d+(_?\d)*(\.\d*)?([eE][-+]?\d+)?", |lex| Float::with_val(25, Float::parse(lex.slice()).unwrap(/* the number is valid */)), priority = 4)]
+    #[regex(r"-?\d+(_?\d)*(\.\d*)?([eE][-+]?\d+)?", |lex| Float::with_val(25, Float::parse(lex.slice()).unwrap(/* the number is valid */)), priority = 4)]
     Float(Float),
 
     #[regex("[a-zA-Z_][a-zA-Z0-9_]*!", |lex| {let raw=lex.slice();&raw[..raw.len()-1]})]
