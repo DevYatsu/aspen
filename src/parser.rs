@@ -103,6 +103,7 @@ pub fn parse_block<'s>(
     stop_on: Option<Token<'s>>,
 ) -> AspenResult<Block<'s>> {
     let mut statements = vec![];
+    let mut expect_stmt_end = false;
 
     while let Some(result_token) = parser.lexer.next() {
         let token = result_token?;
@@ -112,26 +113,29 @@ pub fn parse_block<'s>(
                 let stmt = Import::parse(parser)?;
                 statements.push(Box::new(stmt));
 
-                Import::parse_several_or_newline(parser, &mut statements)?;
+                expect_stmt_end = true;
+                continue;
             }
             Token::Return => {
                 let stmt = Return::parse(parser)?;
                 statements.push(Box::new(stmt));
 
-                Return::parse_several_or_complex_expr_or_newline(parser, &mut statements)?;
+                expect_stmt_end = true;
+                continue;
             }
             Token::Let => {
                 let stmt = Var::parse(parser)?;
                 statements.push(Box::new(stmt));
 
-                Var::parse_several_vars_or_complex_expr_or_newline(parser, &mut statements)?;
+                expect_stmt_end = true;
+                continue;
             }
-            Token::Comma => {
+            Token::Comma if expect_stmt_end => {
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::Var(_) => {
                             let stmt = Var::parse_after_comma(parser)?;
-                            statements.push(Box::new(stmt))
+                            statements.push(Box::new(stmt));
                         }
                         Statement::Import(_) => {
                             let stmt = Import::parse_after_comma(parser)?;
@@ -146,15 +150,18 @@ pub fn parse_block<'s>(
                 } else {
                     return Err(error::AspenError::Unknown("token ',' found".to_owned()));
                 };
+                continue;
             }
 
             Token::For => {
                 let stmt = For::parse(parser)?;
                 statements.push(Box::new(stmt));
+                continue;
             }
             Token::While => {
                 let stmt = While::parse(parser)?;
                 statements.push(Box::new(stmt));
+                continue;
             }
             Token::LineComment(value)
             | Token::DocComment(value)
@@ -162,11 +169,13 @@ pub fn parse_block<'s>(
                 let start = parser.lexer.span().start;
                 let end = parser.lexer.span().end;
 
-                parser.add_comment(Comment::new(value, start, end))
+                parser.add_comment(Comment::new(value, start, end));
+                continue;
             }
             Token::Func(name) => {
                 let stmt = Func::parse(parser, name)?;
                 statements.push(Box::new(stmt));
+                continue;
             }
             _ if stop_on.is_some() && &token == stop_on.as_ref().unwrap() => {
                 return Ok(Block::new(statements));
@@ -282,7 +291,15 @@ pub fn parse_block<'s>(
                     };
                 }
             }
-            _ => {}
+            Token::Newline => expect_stmt_end = false,
+            Token::Spaces => (),
+            _ => {
+                if expect_stmt_end {
+                    return Err(AspenError::ExpectedNewline);
+                } else {
+                    return Err(AspenError::Unknown(format!("token '{:?}' found", token)));
+                }
+            }
         }
     }
 

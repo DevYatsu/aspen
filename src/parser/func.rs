@@ -13,7 +13,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct Func<'a> {
     name: &'a str,
-    arguments: Vec<Argument<'a>>,
+    arguments: Container<Argument<'a>>,
     body: Box<Block<'a>>,
 }
 
@@ -44,7 +44,7 @@ impl<'a> Func<'a> {
     /// Parses arguments of a function call.
     ///
     /// **NOTE: We assume '(' was already consumed!**
-    pub fn parse_call_args<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Container<Expr<'s>>> {
+    pub fn parse_call_args<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
         let mut args = vec![];
         let mut awaits_arg = true;
 
@@ -91,7 +91,9 @@ impl<'a> Func<'a> {
     /// Parses arguments of a function (when declaring it).
     ///
     /// **NOTE: We also parse the '{' which startes the block of the function**
-    fn parse_declaration_args(parser: &mut AspenParser<'a>) -> AspenResult<Vec<Argument<'a>>> {
+    fn parse_declaration_args(
+        parser: &mut AspenParser<'a>,
+    ) -> AspenResult<Container<Argument<'a>>> {
         let mut args = vec![];
         let mut awaits_arg = true;
 
@@ -101,14 +103,14 @@ impl<'a> Func<'a> {
             match token {
                 Token::OpenBrace => break,
                 Token::Identifier(value) if awaits_arg => {
-                    args.push(value.into());
+                    args.push(Box::new(value.into()));
                     awaits_arg = false
                 }
                 Token::SpreadOperator if awaits_arg => {
                     let next_token = next_token(parser)?;
 
                     match next_token {
-                        Token::Identifier(value) => args.push((value, true).into()),
+                        Token::Identifier(value) => args.push(Box::new((value, true).into())),
                         _ => {
                             return Err(AspenError::Expected(
                                 "an identifier following the '...'".to_owned(),

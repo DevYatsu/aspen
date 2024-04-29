@@ -3,14 +3,16 @@ use super::{
     error::{AspenError, AspenResult},
     func::Func,
     operator::BinaryOperator,
-    utils::{expect_token, next_jump_multispace, next_token, TokenOption},
+    utils::{next_jump_multispace, next_token, TokenOption},
     value::{parse_value, Value},
     Expr,
 };
-use crate::parser::value::parse_value_or_return_token;
 use crate::parser::{AspenParser, Token};
 use hashbrown::HashMap;
-use std::cmp::Ordering;
+use std::{
+    borrow::{Borrow, BorrowMut},
+    cmp::Ordering,
+};
 
 impl<'s> Expr<'s> {
     /// Parses an expression.
@@ -49,40 +51,6 @@ impl<'s> Expr<'s> {
         };
 
         Ok(expr)
-    }
-
-    /// Parses an expression or returns the found token.
-    ///
-    pub fn parse_or_return_token(
-        parser: &mut AspenParser<'s>,
-    ) -> AspenResult<TokenOption<'s, Expr<'s>>> {
-        let token = next_jump_multispace(parser)?;
-
-        let expr_or_token: Expr<'s> = match token {
-            Token::OpenBracket => parse_array(parser)?.into(),
-            Token::OpenBrace => parse_obj(parser)?.into(),
-            Token::OpenParen => {
-                let expr = Expr::Parenthesized(Box::new(Self::parse(parser)?));
-                expect_token(parser, Token::CloseParen)?;
-                expr
-            }
-            Token::Identifier(ident) => ident.into(),
-            Token::SpreadOperator => {
-                let next_token = next_token(parser)?;
-
-                match next_token {
-                    Token::Identifier(value) => Expr::SpeadId(value),
-                    _ => {
-                        return Err(AspenError::Expected(
-                            "an identifier following the '...'".to_owned(),
-                        ))
-                    }
-                }
-            }
-            token => return Ok(parse_value_or_return_token(token)?.into()),
-        };
-
-        Ok(expr_or_token.into())
     }
 
     fn add_func_call_to_most_rhs(&mut self, args: Vec<Box<Expr<'s>>>) {
@@ -558,4 +526,8 @@ impl<'a> From<&'a str> for Expr<'a> {
     fn from(val: &'a str) -> Self {
         Expr::Id(val)
     }
+}
+
+pub trait ExprTrait<'a> {
+    fn get_value(&self) -> Expr<'a>;
 }
