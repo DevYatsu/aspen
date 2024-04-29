@@ -14,3 +14,5 @@ let x {
 
 assert_eq(obj.values[0](), "world")
 obj.values[0]()
+
+let num   100_000.power(2)
