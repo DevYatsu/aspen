@@ -368,6 +368,11 @@ impl<'s> Expr<'s> {
 
         loop {
             match next_jump_multispace(parser)? {
+                Token::LineComment(val) | Token::DocComment(val) | Token::MultiLineComment(val) => {
+                    let start = parser.lexer.span().start;
+                    let end = parser.lexer.span().end;
+                    parser.add_comment(Comment::new(val, start, end))
+                }
                 token if bop.is_none() => match token {
                     Token::BinaryOperator(op) => {
                         bop = Some(op);

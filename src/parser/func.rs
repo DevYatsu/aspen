@@ -1,4 +1,5 @@
 use super::{
+    comment::Comment,
     error::{AspenError, AspenResult},
     parse_block,
     utils::{next_jump_multispace, next_token, Block},
@@ -51,6 +52,11 @@ impl<'a> Func<'a> {
             let token = next_jump_multispace(parser)?;
             match token {
                 Token::CloseParen => break,
+                Token::LineComment(val) | Token::DocComment(val) | Token::MultiLineComment(val) => {
+                    let start = parser.lexer.span().start;
+                    let end = parser.lexer.span().end;
+                    parser.add_comment(Comment::new(val, start, end))
+                }
                 token if awaits_arg => {
                     let expr = Expr::parse_with_token(parser, token)?;
                     args.push(Box::new(expr));

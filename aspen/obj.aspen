@@ -3,4 +3,10 @@ let obj {
     bye! "world"
 }
 
-// assert_eq(obj.hello, "world")
+let x {
+    // hey
+    test! /*comment*/ 222_222,
+    ...obj,
+}
+
+assert_eq(obj /* .hello */ , "world")

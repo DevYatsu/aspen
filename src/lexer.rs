@@ -15,13 +15,6 @@ pub enum Token<'a> {
     #[token(",")]
     Comma,
 
-    #[regex(r"//[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
-    LineComment(&'a str),
-    #[regex(r"///[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
-    DocComment(&'a str),
-    #[regex(r"/\*([^*]|\*[^/])*\*/", |lex| let raw=lex.slice();&raw[2..=raw.len()-3])]
-    MultiLineComment(&'a str),
-
     #[token("{")]
     OpenBrace,
     #[token("}")]
@@ -59,6 +52,13 @@ pub enum Token<'a> {
     Dot,
     #[token(":")]
     Range,
+
+    #[regex(r"//[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
+    LineComment(&'a str),
+    #[regex(r"///[^\n]*", |lex| let raw=lex.slice();*&raw[2..=raw.len()-1].trim())]
+    DocComment(&'a str),
+    #[regex(r"/\*([^*]|\*[^/])*\*/", |lex| let raw=lex.slice();&raw[2..=raw.len()-3])]
+    MultiLineComment(&'a str),
 
     #[regex("@[a-zA-Z_][a-zA-Z0-9_]*", |lex| &lex.slice()[1..])]
     Func(&'a str),
