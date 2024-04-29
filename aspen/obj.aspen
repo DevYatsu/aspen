@@ -1,6 +1,9 @@
+@return_1 {1}
+
 let obj {
     hello! "world",
-    bye! "world"
+    bye! "world",
+    values! [return_1,1]
 }
 
 let x {
@@ -9,4 +12,5 @@ let x {
     ...obj,
 }
 
-assert_eq(obj /* .hello */ , "world")
+assert_eq(obj.values[0](), "world")
+obj.values[0]()

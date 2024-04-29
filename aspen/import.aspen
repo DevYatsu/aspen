@@ -1,3 +1,14 @@
-import "std", "os", "fs", "http"
-// 30ms to parse 50k times this file in release mode
-// Content Length: 5 750 000
+import
+    "random"
+
+let x   0
+let arr [random_int(1:100), random(1:100), random(1:100)]
+for i -> arr {x += 1}
+for i -> arr {x += 1}
+
+
+let x   x + arr[0]
+
+print(22:(arr[0]))
+
+x = 2 + 3 * 2 +3

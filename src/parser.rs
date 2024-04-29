@@ -41,6 +41,7 @@ pub enum Statement<'a> {
 pub type Container<T> = Vec<Box<T>>;
 
 #[derive(Debug, Clone, PartialEq)]
+/// Represents an Aspen Expression!
 pub enum Expr<'a> {
     Value(Value<'a>),
 
@@ -75,6 +76,11 @@ pub enum Expr<'a> {
     },
 
     ArrayIndexing {
+        indexed: Box<Expr<'a>>,
+        indexer: Box<Expr<'a>>,
+    },
+
+    ObjIndexing {
         indexed: Box<Expr<'a>>,
         indexer: Box<Expr<'a>>,
     },
@@ -275,6 +281,22 @@ pub fn parse_block<'s>(
 
                 return Err(AspenError::Unknown("token ':' found".to_owned()));
             }
+            Token::Dot => {
+                if let Some(stmt) = statements.last_mut() {
+                    match stmt.as_mut() {
+                        Statement::Expr(base_expr) => {
+                            Expr::modify_into_obj_indexing(parser, base_expr)?;
+                        }
+                        Statement::Var(Var { value, .. }) => {
+                            Expr::modify_into_obj_indexing(parser, value)?;
+                        }
+                        Statement::Return(Return(vars)) => {
+                            Expr::modify_into_obj_indexing(parser, vars.last_mut().unwrap())?;
+                        }
+                        _ => return Err(AspenError::Unknown("token '[' found".to_owned())),
+                    };
+                }
+            }
             Token::OpenBracket => {
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
@@ -323,6 +345,12 @@ impl<'a> AspenParser<'a> {
     }
     pub fn add_comment(&mut self, comment: Comment<'a>) {
         self.comments.push(Box::new(comment))
+    }
+    pub fn statements(&mut self) -> Container<Statement<'a>> {
+        self.body.statements()
+    }
+    pub fn comments(&self) -> Container<Comment<'a>> {
+        self.comments.to_owned()
     }
 }
 

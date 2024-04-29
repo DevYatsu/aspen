@@ -9,10 +9,7 @@ use super::{
 };
 use crate::parser::{AspenParser, Token};
 use hashbrown::HashMap;
-use std::{
-    borrow::{Borrow, BorrowMut},
-    cmp::Ordering,
-};
+use std::cmp::Ordering;
 
 impl<'s> Expr<'s> {
     /// Parses an expression.
@@ -73,6 +70,16 @@ impl<'s> Expr<'s> {
             indexer,
         };
     }
+    fn add_obj_indexing_to_most_rhs(&mut self, indexer: Box<Expr<'s>>) {
+        let mut expr = self;
+        while let Expr::Binary { rhs, .. } = expr {
+            expr = rhs;
+        }
+        *expr = Expr::ObjIndexing {
+            indexed: Box::new(expr.clone()),
+            indexer,
+        };
+    }
 
     /// Function to call after a '(' is consumed when the expression is expected to be a function call.
     pub fn modify_into_fn_call(
@@ -81,7 +88,11 @@ impl<'s> Expr<'s> {
     ) -> AspenResult<()> {
         let args = Func::parse_call_args(parser)?;
         match base_expr.as_mut() {
-            Expr::Id(_) | Expr::FuncCall { .. } => {
+            Expr::Id(_)
+            | Expr::FuncCall { .. }
+            | Expr::ObjIndexing { .. }
+            | Expr::ArrayIndexing { .. }
+            | Expr::Parenthesized(_) => {
                 *base_expr = Box::new(Expr::FuncCall {
                     callee: base_expr.clone(),
                     args,
@@ -98,7 +109,11 @@ impl<'s> Expr<'s> {
                 Expr::Binary { rhs, .. } => {
                     rhs.add_func_call_to_most_rhs(args);
                 }
-                Expr::Id(_) | Expr::FuncCall { .. } => {
+                Expr::Id(_)
+                | Expr::FuncCall { .. }
+                | Expr::ObjIndexing { .. }
+                | Expr::ArrayIndexing { .. }
+                | Expr::Parenthesized(_) => {
                     *base_expr = Box::new(Expr::Assign {
                         target: target.clone(),
                         operator: operator.to_owned(),
@@ -123,7 +138,11 @@ impl<'s> Expr<'s> {
     ) -> AspenResult<()> {
         let expr = Expr::parse_until(parser, Token::CloseBracket)?;
         match base_expr.as_mut() {
-            Expr::Id(_) | Expr::FuncCall { .. } => {
+            Expr::Id(_)
+            | Expr::FuncCall { .. }
+            | Expr::ObjIndexing { .. }
+            | Expr::ArrayIndexing { .. }
+            | Expr::Parenthesized(_) => {
                 *base_expr = Box::new(Expr::ArrayIndexing {
                     indexed: base_expr.clone(),
                     indexer: expr,
@@ -136,7 +155,11 @@ impl<'s> Expr<'s> {
                 operator,
             } => match value.as_mut() {
                 Expr::Binary { rhs, .. } => rhs.add_array_indexing_to_most_rhs(expr),
-                Expr::Id(_) | Expr::FuncCall { .. } => {
+                Expr::Id(_)
+                | Expr::FuncCall { .. }
+                | Expr::ObjIndexing { .. }
+                | Expr::ArrayIndexing { .. }
+                | Expr::Parenthesized(_) => {
                     *base_expr = Box::new(Expr::Assign {
                         target: target.clone(),
                         operator: operator.clone(),
@@ -149,6 +172,64 @@ impl<'s> Expr<'s> {
                 _ => return Err(AspenError::Unknown("token found: '['".to_owned())),
             },
             _ => return Err(AspenError::Unknown("token found: '['".to_owned())),
+        };
+
+        Ok(())
+    }
+
+    /// Function to call after a '.' is consumed when the expression is expected to be an obj indexing.
+    pub fn modify_into_obj_indexing(
+        parser: &mut AspenParser<'s>,
+        base_expr: &mut Box<Expr<'s>>,
+    ) -> AspenResult<()> {
+        let e = Expr::parse(parser)?;
+
+        match &e {
+            Expr::Id(_) => (),
+            _ => {
+                return Err(AspenError::Unknown(format!(
+                    "token '{:?}', an object can only be accessed with an identifier",
+                    e
+                )));
+            }
+        }
+
+        let expr = Box::new(e);
+        match base_expr.as_mut() {
+            Expr::Id(_)
+            | Expr::FuncCall { .. }
+            | Expr::ObjIndexing { .. }
+            | Expr::ArrayIndexing { .. }
+            | Expr::Parenthesized(_) => {
+                *base_expr = Box::new(Expr::ObjIndexing {
+                    indexed: base_expr.clone(),
+                    indexer: expr,
+                });
+            }
+            Expr::Binary { rhs, .. } => rhs.add_obj_indexing_to_most_rhs(expr),
+            Expr::Assign {
+                value,
+                target,
+                operator,
+            } => match value.as_mut() {
+                Expr::Binary { rhs, .. } => rhs.add_obj_indexing_to_most_rhs(expr),
+                Expr::Id(_)
+                | Expr::FuncCall { .. }
+                | Expr::ObjIndexing { .. }
+                | Expr::ArrayIndexing { .. }
+                | Expr::Parenthesized(_) => {
+                    *base_expr = Box::new(Expr::Assign {
+                        target: target.clone(),
+                        operator: operator.clone(),
+                        value: Box::new(Expr::ObjIndexing {
+                            indexed: value.clone(),
+                            indexer: expr,
+                        }),
+                    });
+                }
+                _ => return Err(AspenError::Unknown("token found: '.'".to_owned())),
+            },
+            _ => return Err(AspenError::Unknown("token found: '.'".to_owned())),
         };
 
         Ok(())
@@ -179,7 +260,9 @@ impl<'s> Expr<'s> {
             | Expr::Binary { .. }
             | Expr::FuncCall { .. }
             | Expr::Value(_)
-            | Expr::Parenthesized(_) => {
+            | Expr::Parenthesized(_)
+            | Expr::ObjIndexing { .. }
+            | Expr::ArrayIndexing { .. } => {
                 *base_expr = Box::new(Expr::Range {
                     start: base_expr.clone(),
                     end: Box::new(second_expr),
@@ -209,11 +292,13 @@ impl<'s> Expr<'s> {
                         .into(),
                     });
                 }
-                Expr::Binary { .. }
+                Expr::Id(_)
+                | Expr::Binary { .. }
                 | Expr::FuncCall { .. }
-                | Expr::Id(_)
                 | Expr::Value(_)
-                | Expr::Parenthesized(_) => {
+                | Expr::Parenthesized(_)
+                | Expr::ObjIndexing { .. }
+                | Expr::ArrayIndexing { .. } => {
                     *base_expr = Box::new(Expr::Assign {
                         target: target.clone(),
                         operator: operator.clone(),
@@ -266,21 +351,64 @@ impl<'s> Expr<'s> {
             }
             Expr::Assign {
                 target,
-                operator,
+                operator: aop,
                 value,
-            } => {
-                *base_expr = Expr::Assign {
-                    target: target.clone(),
-                    operator: operator.clone(),
-                    value: Box::new(Expr::Binary {
-                        lhs: value.clone(),
-                        operator: bop,
-                        rhs: base_expr.clone(),
-                    }),
+            } => match value.as_mut() {
+                Expr::Binary { rhs, operator, lhs } => {
+                    let result = operator.get_precedence().cmp(&bop.get_precedence());
+                    match result {
+                        Ordering::Greater => {
+                            *base_expr = Expr::Assign {
+                                target: target.clone(),
+                                operator: aop.clone(),
+                                value: Box::new(Expr::Binary {
+                                    lhs: base_expr.clone(),
+                                    operator: bop,
+                                    rhs: Box::new(right_expr),
+                                }),
+                            }
+                            .into();
+                        }
+                        Ordering::Equal | Ordering::Less => {
+                            *base_expr = Expr::Assign {
+                                target: target.clone(),
+                                operator: aop.clone(),
+                                value: Box::new(
+                                    Expr::Binary {
+                                        lhs: lhs.clone(),
+                                        operator: operator.clone(),
+                                        rhs: Box::new(Expr::Binary {
+                                            lhs: rhs.clone(),
+                                            operator: bop,
+                                            rhs: Box::new(right_expr),
+                                        }),
+                                    }
+                                    .into(),
+                                ),
+                            }
+                            .into();
+                        }
+                    }
                 }
-                .into();
-            }
-            Expr::FuncCall { .. } | Expr::Id(_) | Expr::Value(_) | Expr::Parenthesized(_) => {
+                _ => {
+                    *base_expr = Expr::Assign {
+                        target: target.clone(),
+                        operator: aop.clone(),
+                        value: Box::new(Expr::Binary {
+                            lhs: value.clone(),
+                            operator: bop,
+                            rhs: Box::new(right_expr),
+                        }),
+                    }
+                    .into();
+                }
+            },
+            Expr::Id(_)
+            | Expr::FuncCall { .. }
+            | Expr::Value(_)
+            | Expr::Parenthesized(_)
+            | Expr::ObjIndexing { .. }
+            | Expr::ArrayIndexing { .. } => {
                 *base_expr = Expr::Binary {
                     lhs: base_expr.clone(),
                     operator: bop,
@@ -333,6 +461,7 @@ impl<'s> Expr<'s> {
                     }
                     Token::OpenParen => Expr::modify_into_fn_call(parser, &mut base_expr)?,
                     Token::OpenBracket => Expr::modify_into_array_indexing(parser, &mut base_expr)?,
+                    Token::Dot => Expr::modify_into_obj_indexing(parser, &mut base_expr)?,
                     token if token == stop_token => return Ok(base_expr),
                     _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
                 },
@@ -526,8 +655,4 @@ impl<'a> From<&'a str> for Expr<'a> {
     fn from(val: &'a str) -> Self {
         Expr::Id(val)
     }
-}
-
-pub trait ExprTrait<'a> {
-    fn get_value(&self) -> Expr<'a>;
 }

@@ -49,8 +49,7 @@ impl<'a> Func<'a> {
         let mut awaits_arg = true;
 
         loop {
-            let token = next_jump_multispace(parser)?;
-            match token {
+            match next_jump_multispace(parser)? {
                 Token::CloseParen => break,
                 Token::LineComment(val) | Token::DocComment(val) | Token::MultiLineComment(val) => {
                     let start = parser.lexer.span().start;
@@ -63,25 +62,31 @@ impl<'a> Func<'a> {
                     awaits_arg = false
                 }
                 Token::Range if !awaits_arg => {
+                    // condition is sure to be true
                     if let Some(expr) = args.last_mut() {
-                        match expr.as_mut() {
-                            Expr::Id(_)
-                            | Expr::Value(_)
-                            | Expr::FuncCall { .. }
-                            | Expr::Binary { .. }
-                            | Expr::Parenthesized(_)
-                            | Expr::Range { .. } => Expr::modify_into_range(parser, expr)?,
-                            _ => {
-                                return Err(AspenError::Unknown(format!(
-                                    "token ':', cannot create a range from {:?}",
-                                    expr,
-                                )))
-                            }
-                        };
+                        Expr::modify_into_range(parser, expr)?;
+                    }
+                }
+                Token::Dot if !awaits_arg => {
+                    // condition is sure to be true
+                    if let Some(expr) = args.last_mut() {
+                        Expr::modify_into_obj_indexing(parser, expr)?;
+                    }
+                }
+                Token::OpenBracket if !awaits_arg => {
+                    // condition is sure to be true
+                    if let Some(expr) = args.last_mut() {
+                        Expr::modify_into_array_indexing(parser, expr)?;
+                    }
+                }
+                Token::OpenParen if !awaits_arg => {
+                    // condition is sure to be true
+                    if let Some(expr) = args.last_mut() {
+                        Expr::modify_into_fn_call(parser, expr)?;
                     }
                 }
                 Token::Comma if !awaits_arg => awaits_arg = true,
-                _ => return Err(AspenError::Expected("a valid argument or ')'".to_owned())),
+                _ => return Err(AspenError::Expected("a close parenthesis ')'".to_owned())),
             };
         }
 

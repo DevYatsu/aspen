@@ -95,6 +95,9 @@ impl<'a> Block<'a> {
     pub fn new(statements: Container<Statement<'a>>) -> Self {
         Self { statements }
     }
+    pub fn statements(&self) -> Container<Statement<'a>> {
+        self.statements.to_owned()
+    }
 }
 
 impl<'a, T> From<Token<'a>> for TokenOption<'a, T> {

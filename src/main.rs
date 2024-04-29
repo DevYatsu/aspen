@@ -45,8 +45,8 @@ fn main() -> Result<(), AspenError> {
             let start = Instant::now();
             parse_aspen(&mut parser)?;
 
-            // println!("stmts: {:?}", parser.statements());
-            // println!("comments: {:?}", parser.comments());
+            println!("stmts: {:?}", parser.statements());
+            println!("comments: {:?}", parser.comments());
             println!("Content length: {}", content.len());
             println!("Lexing took {} ms!", start.elapsed().as_millis());
         }
