@@ -101,6 +101,26 @@ impl<'s> Expr<'s> {
             Expr::Binary { rhs, .. } => {
                 rhs.add_func_call_to_most_rhs(args);
             }
+            Expr::Range {
+                ref mut end,
+                ref mut step,
+                ..
+            } => {
+                match step.is_some() {
+                    true => {
+                        *step = Some(Box::new(Expr::FuncCall {
+                            callee: step.clone().unwrap(),
+                            args,
+                        }));
+                    }
+                    false => {
+                        *end = Box::new(Expr::FuncCall {
+                            callee: end.clone(),
+                            args,
+                        });
+                    }
+                };
+            }
             Expr::Assign {
                 ref mut value,
                 ref target,
@@ -123,7 +143,27 @@ impl<'s> Expr<'s> {
                         }),
                     });
                 }
-                _ => (),
+                Expr::Range {
+                    ref mut end,
+                    ref mut step,
+                    ..
+                } => {
+                    match step.is_some() {
+                        true => {
+                            *step = Some(Box::new(Expr::FuncCall {
+                                callee: step.clone().unwrap(),
+                                args,
+                            }));
+                        }
+                        false => {
+                            *end = Box::new(Expr::FuncCall {
+                                callee: end.clone(),
+                                args,
+                            });
+                        }
+                    };
+                }
+                _ => return Err(AspenError::Unknown("token '(' found".to_owned())),
             },
             _ => return Err(AspenError::Unknown("token '(' found".to_owned())),
         };
@@ -148,6 +188,26 @@ impl<'s> Expr<'s> {
                     indexer: expr,
                 });
             }
+            Expr::Range {
+                ref mut end,
+                ref mut step,
+                ..
+            } => {
+                match step.is_some() {
+                    true => {
+                        *step = Some(Box::new(Expr::ArrayIndexing {
+                            indexed: step.clone().unwrap(),
+                            indexer: expr,
+                        }));
+                    }
+                    false => {
+                        *end = Box::new(Expr::ArrayIndexing {
+                            indexed: end.clone(),
+                            indexer: expr,
+                        });
+                    }
+                };
+            }
             Expr::Binary { rhs, .. } => rhs.add_array_indexing_to_most_rhs(expr),
             Expr::Assign {
                 value,
@@ -168,6 +228,26 @@ impl<'s> Expr<'s> {
                             indexer: expr,
                         }),
                     });
+                }
+                Expr::Range {
+                    ref mut end,
+                    ref mut step,
+                    ..
+                } => {
+                    match step.is_some() {
+                        true => {
+                            *step = Some(Box::new(Expr::ArrayIndexing {
+                                indexed: step.clone().unwrap(),
+                                indexer: expr,
+                            }));
+                        }
+                        false => {
+                            *end = Box::new(Expr::ArrayIndexing {
+                                indexed: end.clone(),
+                                indexer: expr,
+                            });
+                        }
+                    };
                 }
                 _ => return Err(AspenError::Unknown("token found: '['".to_owned())),
             },
@@ -196,7 +276,8 @@ impl<'s> Expr<'s> {
 
         let expr = Box::new(e);
         match base_expr.as_mut() {
-            Expr::Id(_)
+            Expr::Value(_)
+            | Expr::Id(_)
             | Expr::FuncCall { .. }
             | Expr::ObjIndexing { .. }
             | Expr::ArrayIndexing { .. }
@@ -206,6 +287,26 @@ impl<'s> Expr<'s> {
                     indexer: expr,
                 });
             }
+            Expr::Range {
+                ref mut end,
+                ref mut step,
+                ..
+            } => {
+                match step.is_some() {
+                    true => {
+                        *step = Some(Box::new(Expr::ObjIndexing {
+                            indexed: step.clone().unwrap(),
+                            indexer: expr,
+                        }));
+                    }
+                    false => {
+                        *end = Box::new(Expr::ObjIndexing {
+                            indexed: end.clone(),
+                            indexer: expr,
+                        });
+                    }
+                };
+            }
             Expr::Binary { rhs, .. } => rhs.add_obj_indexing_to_most_rhs(expr),
             Expr::Assign {
                 value,
@@ -213,7 +314,8 @@ impl<'s> Expr<'s> {
                 operator,
             } => match value.as_mut() {
                 Expr::Binary { rhs, .. } => rhs.add_obj_indexing_to_most_rhs(expr),
-                Expr::Id(_)
+                Expr::Value(_)
+                | Expr::Id(_)
                 | Expr::FuncCall { .. }
                 | Expr::ObjIndexing { .. }
                 | Expr::ArrayIndexing { .. }
@@ -226,6 +328,26 @@ impl<'s> Expr<'s> {
                             indexer: expr,
                         }),
                     });
+                }
+                Expr::Range {
+                    ref mut end,
+                    ref mut step,
+                    ..
+                } => {
+                    match step.is_some() {
+                        true => {
+                            *step = Some(Box::new(Expr::ObjIndexing {
+                                indexed: step.clone().unwrap(),
+                                indexer: expr,
+                            }));
+                        }
+                        false => {
+                            *end = Box::new(Expr::ObjIndexing {
+                                indexed: end.clone(),
+                                indexer: expr,
+                            });
+                        }
+                    };
                 }
                 _ => return Err(AspenError::Unknown("token found: '.'".to_owned())),
             },
