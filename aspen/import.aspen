@@ -1,5 +1,4 @@
-import
-    "random"
+let (random_int, get_random)    $import("random")
 
 let x   0
 let arr [random_int(1:100), random(1:100), random(1:100)]

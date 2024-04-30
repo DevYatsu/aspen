@@ -10,7 +10,7 @@ pub type AspenLexer<'s> = Lexer<'s, Token<'s>>;
 pub enum Token<'a> {
     #[token("\n")]
     Newline,
-    #[regex(r"(\t| )+")]
+    #[regex(r"(\t|\r| )+")]
     Spaces,
     #[token(",")]
     Comma,
@@ -46,7 +46,7 @@ pub enum Token<'a> {
     #[token("else")]
     Else,
 
-    #[token("import")]
+    #[regex(r"\$import|\$imp|\$")]
     Import,
     #[token("return")]
     Return,

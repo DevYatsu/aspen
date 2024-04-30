@@ -6,7 +6,7 @@ use self::operator::{AssignOperator, BinaryOperator};
 use self::return_stmt::Return;
 use self::utils::Block;
 use self::while_loop::While;
-use self::{comment::Comment, error::AspenResult, import::Import, value::Value, var::Var};
+use self::{comment::Comment, error::AspenResult, value::Value, var::Var};
 use crate::lexer::{AspenLexer, Token};
 use hashbrown::HashMap;
 use logos::Lexer;
@@ -17,7 +17,6 @@ pub mod error;
 mod expr;
 pub mod for_loop;
 pub mod func;
-pub mod import;
 mod macros;
 pub mod operator;
 pub mod return_stmt;
@@ -29,7 +28,6 @@ pub mod while_loop;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement<'a> {
     Var(Var<'a>),
-    Import(Import<'a>),
     Func(Func<'a>),
 
     // change to Expr{value: Box<Expr<'a>>, is_returned: bool} to handle implicit return in the future, when followed by ';' then is not returned
@@ -47,6 +45,7 @@ pub type Container<T> = Vec<Box<T>>;
 /// Represents an Aspen Expression!
 pub enum Expr<'a> {
     Value(Value<'a>),
+    Import(&'a str),
 
     Array(Container<Expr<'a>>),
     Object(HashMap<&'a str, Box<Expr<'a>>>),
@@ -124,14 +123,6 @@ pub fn parse_block<'s>(
         let token = result_token?;
 
         match token {
-            Token::Import => {
-                semi_colon_found = false;
-                let stmt = Import::parse(parser)?;
-                statements.push(Box::new(stmt));
-
-                expect_stmt_end = true;
-                continue;
-            }
             Token::Return => {
                 semi_colon_found = false;
                 let stmt = Return::parse(parser)?;
@@ -158,10 +149,6 @@ pub fn parse_block<'s>(
                         Statement::Var(_) => {
                             let stmt = Var::parse_after_comma(parser)?;
                             statements.push(Box::new(stmt));
-                        }
-                        Statement::Import(_) => {
-                            let stmt = Import::parse_after_comma(parser)?;
-                            statements.push(Box::new(stmt))
                         }
                         Statement::Return(Return(vec)) => {
                             let stmt = Return::parse_after_comma(parser)?;

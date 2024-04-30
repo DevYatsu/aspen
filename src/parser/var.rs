@@ -1,7 +1,7 @@
 use super::{
     error::{AspenError, AspenResult},
-    utils::{expect_space, next_jump_multispace, next_jump_space},
-    Container, Expr, Statement,
+    utils::{expect_space, next_jump_multispace},
+    Expr, Statement,
 };
 use crate::parser::{AspenParser, Token};
 
@@ -26,7 +26,7 @@ impl<'a> Var<'a> {
 
         match next_jump_multispace(parser)? {
             Token::Identifier(name) => variables.push(name),
-            Token::OpenBracket => {
+            Token::OpenParen => {
                 match next_jump_multispace(parser)? {
                     Token::Identifier(name) => variables.push(name),
                     _ => return Err(AspenError::Expected("an import value".to_owned())),
@@ -41,7 +41,7 @@ impl<'a> Var<'a> {
                                 _ => return Err(AspenError::Expected("an identifier".to_owned())),
                             };
                         }
-                        Token::CloseBracket => break,
+                        Token::CloseParen => break,
                         _ => return Err(AspenError::Expected("an identifier".to_owned())),
                     }
                 }

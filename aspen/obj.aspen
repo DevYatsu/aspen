@@ -6,6 +6,8 @@ let obj {
     values! [return_1,1]
 }
 
+let (hello, bye)    obj
+
 let x {
     // hey
     test! /*comment*/ 222_222,

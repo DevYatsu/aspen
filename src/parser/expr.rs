@@ -3,7 +3,7 @@ use super::{
     error::{AspenError, AspenResult},
     func::Func,
     operator::BinaryOperator,
-    utils::{next_jump_multispace, next_token, TokenOption},
+    utils::{expect_token, next_jump_multispace, next_token, TokenOption},
     value::{parse_value, Value},
     Expr,
 };
@@ -43,6 +43,18 @@ impl<'s> Expr<'s> {
                         ))
                     }
                 }
+            }
+            Token::Import => {
+                expect_token(parser, Token::OpenParen)?;
+
+                let name = match next_jump_multispace(parser)? {
+                    Token::String(name) => name,
+                    _ => return Err(AspenError::Expected("an import value".to_owned())),
+                };
+
+                expect_token(parser, Token::CloseParen)?;
+
+                Expr::Import(name)
             }
             token => parse_value(token)?.into(),
         };
