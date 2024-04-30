@@ -1,0 +1,13 @@
+while true == false {
+    print("nothing")
+}
+
+for i -> [1,2,3] {print(str(i))}
+
+if false {
+    // never happens
+} otherwise true {
+    // happens
+} else {
+    // never happens
+}

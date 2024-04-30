@@ -30,11 +30,19 @@ pub enum Token<'a> {
     #[token(")")]
     CloseParen,
 
-    #[token("->")]
+    #[regex(r"->|in")]
     In,
 
     #[token("nil")]
     Nil,
+
+    #[token("if")]
+    If,
+    #[regex(r"other|otherwise")]
+    /// Represents the elseif variant keyword of an if: can be either 'other' or 'otherwise'
+    Other,
+    #[token("else")]
+    Else,
 
     #[token("import")]
     Import,

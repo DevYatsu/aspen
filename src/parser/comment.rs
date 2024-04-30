@@ -3,9 +3,9 @@ use std::ops::Deref;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Comment<'a> {
-    start: usize,
-    end: usize,
-    value: &'a str,
+    pub start: usize,
+    pub end: usize,
+    pub value: &'a str,
 }
 
 impl<'a> Comment<'a> {

@@ -20,16 +20,7 @@ impl<'s> For<'s> {
     pub fn parse(parser: &mut AspenParser<'s>) -> AspenResult<Statement<'s>> {
         expect_space(parser)?;
         let args = Self::parse_args(parser)?;
-        expect_space(parser)?;
-
-        let indexed = Box::new(Expr::parse(parser)?);
-
-        let token = next_jump_multispace(parser)?;
-        match token {
-            Token::OpenBrace => (),
-            _ => return Err(AspenError::Expected("a '{'".to_owned())),
-        };
-
+        let indexed = Expr::parse_until(parser, Token::OpenBrace)?;
         let body = Box::new(parse_block(parser, Some(Token::CloseBrace))?);
 
         Ok(For {

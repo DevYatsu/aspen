@@ -11,6 +11,7 @@ pub struct While<'a> {
     pub condition: Box<Expr<'a>>,
     pub body: Box<Block<'a>>,
 }
+crate::impl_from_for!(While, Statement);
 
 impl<'s> While<'s> {
     /// Parses a while loop.
@@ -18,18 +19,9 @@ impl<'s> While<'s> {
     /// **NOTE: We assume "while" is already consumed by the parser!**
     pub fn parse(parser: &mut AspenParser<'s>) -> AspenResult<Statement<'s>> {
         expect_space(parser)?;
-        let condition = Box::new(Expr::parse(parser)?);
-
-        let token = next_jump_multispace(parser)?;
-        match token {
-            Token::OpenBrace => (),
-            _ => return Err(AspenError::Expected("a '{'".to_owned())),
-        };
-
+        let condition = Expr::parse_until(parser, Token::OpenBrace)?;
         let body = Box::new(parse_block(parser, Some(Token::CloseBrace))?);
 
         Ok(While { condition, body }.into())
     }
 }
-
-crate::impl_from_for!(While, Statement);

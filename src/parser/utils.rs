@@ -32,7 +32,13 @@ pub fn expect_token<'s>(
 
     match token {
         token if token == expected_token => (),
-        _ => return Err(AspenError::Expected(format!("'{:?}'", expected_token))),
+        _ => {
+            return Err(AspenError::Expected(format!(
+                "'{:?}', found '{}'",
+                expected_token,
+                parser.lexer.slice()
+            )))
+        }
     }
 
     Ok(())

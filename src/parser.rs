@@ -1,3 +1,4 @@
+use self::conditional::If;
 use self::error::AspenError;
 use self::for_loop::For;
 use self::func::Func;
@@ -11,6 +12,7 @@ use hashbrown::HashMap;
 use logos::Lexer;
 
 pub mod comment;
+pub mod conditional;
 pub mod error;
 mod expr;
 pub mod for_loop;
@@ -36,6 +38,7 @@ pub enum Statement<'a> {
     For(For<'a>),
     While(While<'a>),
     Return(Return<'a>),
+    If(If<'a>),
 }
 
 pub type Container<T> = Vec<Box<T>>;
@@ -168,6 +171,45 @@ pub fn parse_block<'s>(
                 let stmt = While::parse(parser)?;
                 statements.push(Box::new(stmt));
                 continue;
+            }
+            Token::If => {
+                let stmt = If::parse(parser)?;
+                statements.push(Box::new(stmt));
+                continue;
+            }
+            Token::Other => {
+                if let Some(stmt) = statements.last_mut() {
+                    match stmt.as_mut() {
+                        Statement::If(ref mut if_stmt) => {
+                            let value = If::parse_other(parser)?;
+                            if_stmt.add_other_at_if_end(value)?;
+                            continue;
+                        }
+                        _ => {
+                            return Err(AspenError::Unknown(format!(
+                                "token '{}' found",
+                                parser.lexer.slice()
+                            )))
+                        }
+                    };
+                }
+            }
+            Token::Else => {
+                if let Some(stmt) = statements.last_mut() {
+                    match stmt.as_mut() {
+                        Statement::If(ref mut if_stmt) => {
+                            let value = If::parse_else(parser)?;
+                            if_stmt.add_other_at_if_end(value)?;
+                            continue;
+                        }
+                        _ => {
+                            return Err(AspenError::Unknown(format!(
+                                "token '{}' found",
+                                parser.lexer.slice()
+                            )))
+                        }
+                    };
+                }
             }
             Token::LineComment(value)
             | Token::DocComment(value)
@@ -319,7 +361,10 @@ pub fn parse_block<'s>(
                 if expect_stmt_end {
                     return Err(AspenError::ExpectedNewline);
                 } else {
-                    return Err(AspenError::Unknown(format!("token '{:?}' found", token)));
+                    return Err(AspenError::Unknown(format!(
+                        "token '{}' found",
+                        parser.lexer.slice()
+                    )));
                 }
             }
         }

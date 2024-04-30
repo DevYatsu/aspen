@@ -1,5 +1,0 @@
-while true {
-    import "x", "y", "z"
-}
-// 50ms to parse 50k times this file in release mode
-// Content Length: 6 100 000
