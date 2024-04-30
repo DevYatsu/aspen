@@ -113,12 +113,14 @@ pub fn parse_block<'s>(
 ) -> AspenResult<Block<'s>> {
     let mut statements = vec![];
     let mut expect_stmt_end = false;
+    let mut semi_colon_found = false;
 
     while let Some(result_token) = parser.lexer.next() {
         let token = result_token?;
 
         match token {
             Token::Import => {
+                semi_colon_found = false;
                 let stmt = Import::parse(parser)?;
                 statements.push(Box::new(stmt));
 
@@ -126,6 +128,7 @@ pub fn parse_block<'s>(
                 continue;
             }
             Token::Return => {
+                semi_colon_found = false;
                 let stmt = Return::parse(parser)?;
                 statements.push(Box::new(stmt));
 
@@ -133,6 +136,7 @@ pub fn parse_block<'s>(
                 continue;
             }
             Token::Let => {
+                semi_colon_found = false;
                 let stmt = Var::parse(parser)?;
                 statements.push(Box::new(stmt));
 
@@ -140,6 +144,10 @@ pub fn parse_block<'s>(
                 continue;
             }
             Token::Comma if expect_stmt_end => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown("token ',' found".to_owned()));
+                }
+
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::Var(_) => {
@@ -163,21 +171,31 @@ pub fn parse_block<'s>(
             }
 
             Token::For => {
+                semi_colon_found = false;
                 let stmt = For::parse(parser)?;
                 statements.push(Box::new(stmt));
                 continue;
             }
             Token::While => {
+                semi_colon_found = false;
                 let stmt = While::parse(parser)?;
                 statements.push(Box::new(stmt));
                 continue;
             }
             Token::If => {
+                semi_colon_found = false;
                 let stmt = If::parse(parser)?;
                 statements.push(Box::new(stmt));
                 continue;
             }
             Token::Other => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown(format!(
+                        "token '{}' found",
+                        parser.lexer.slice()
+                    )));
+                }
+
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::If(ref mut if_stmt) => {
@@ -195,6 +213,10 @@ pub fn parse_block<'s>(
                 }
             }
             Token::Else => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown("token 'else' found".to_owned()));
+                }
+
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::If(ref mut if_stmt) => {
@@ -221,6 +243,7 @@ pub fn parse_block<'s>(
                 continue;
             }
             Token::Func(name) => {
+                semi_colon_found = false;
                 let stmt = Func::parse(parser, name)?;
                 statements.push(Box::new(stmt));
                 continue;
@@ -241,6 +264,10 @@ pub fn parse_block<'s>(
                 }
             }
             Token::AssignOperator(aop) => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown(format!("token '{}' found", aop)));
+                }
+
                 if let Some(stmt) = statements.last_mut() {
                     if let Statement::Expr(base_expr) = stmt.as_mut() {
                         let expr = Expr::parse(parser)?;
@@ -258,6 +285,10 @@ pub fn parse_block<'s>(
                 };
             }
             Token::BinaryOperator(bop) => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown(format!("token '{}' found", bop)));
+                }
+
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::Expr(base_expr)
@@ -284,6 +315,10 @@ pub fn parse_block<'s>(
                 };
             }
             Token::OpenParen => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown("token '(' found".to_owned()));
+                }
+
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::Expr(base_expr) => {
@@ -306,6 +341,10 @@ pub fn parse_block<'s>(
                 statements.push(Box::new(Statement::Expr(Box::new(expr))))
             }
             Token::Range => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown("token ':' found".to_owned()));
+                }
+
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::Expr(base_expr) => {
@@ -324,6 +363,10 @@ pub fn parse_block<'s>(
                 return Err(AspenError::Unknown("token ':' found".to_owned()));
             }
             Token::Dot => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown("token '.' found".to_owned()));
+                }
+
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::Expr(base_expr) => {
@@ -340,6 +383,13 @@ pub fn parse_block<'s>(
                 }
             }
             Token::OpenBracket => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown(
+                        "token '[' found, cannot write arrays expressions in global context"
+                            .to_owned(),
+                    ));
+                }
+
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::Expr(base_expr) => {
@@ -356,6 +406,10 @@ pub fn parse_block<'s>(
                 }
             }
             Token::Newline => expect_stmt_end = false,
+            Token::SemiColon => {
+                expect_stmt_end = false;
+                semi_colon_found = true;
+            }
             Token::Spaces => (),
             _ => {
                 if expect_stmt_end {

@@ -14,6 +14,8 @@ pub enum Token<'a> {
     Spaces,
     #[token(",")]
     Comma,
+    #[token(";")]
+    SemiColon,
 
     #[token("{")]
     OpenBrace,
