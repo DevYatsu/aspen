@@ -12,9 +12,9 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Func<'a> {
-    name: &'a str,
-    arguments: Container<Argument<'a>>,
-    body: Box<Block<'a>>,
+    pub name: &'a str,
+    pub arguments: Container<Argument<'a>>,
+    pub body: Box<Block<'a>>,
 }
 
 crate::impl_from_for!(Func, Statement);

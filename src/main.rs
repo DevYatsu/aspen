@@ -1,9 +1,10 @@
-use crate::{lexer::Token, parser::parse_aspen};
+use crate::{execute::execute, lexer::Token, parser::parse_aspen};
 use dialoguer::{theme::ColorfulTheme, Select};
 use logos::Logos;
 use parser::error::AspenError;
 use std::{env::args, fs, time::Instant};
 
+mod execute;
 mod lexer;
 mod parser;
 
@@ -48,7 +49,11 @@ fn main() -> Result<(), AspenError> {
             // println!("stmts: {:?}", parser.statements());
             // println!("comments: {:?}", parser.comments());
             println!("Content length: {}", content.len());
-            println!("Lexing took {} ms!", start.elapsed().as_millis());
+            println!("Lexing+Parsing took {} ms!", start.elapsed().as_millis());
+
+            let start = Instant::now();
+            execute(parser.statements())?;
+            println!("Executing took {} ms!", start.elapsed().as_millis());
         }
     };
 
