@@ -103,7 +103,7 @@ pub enum Token<'a> {
     })]
     AssignOperator(AssignOperator),
 
-    #[regex(r#"\+|-|\*\*|\*|/|%|==|>=|>|<=|<|&&|\|\|"#, |lex| {
+    #[regex(r#"\+|-|\*\*|\*|/|%|!=|==|>=|>|<=|<|&&|\|\|"#, |lex| {
         match lex.slice() {
             "+" => BinaryOperator::Plus,
             "-" => BinaryOperator::Sub,
@@ -112,6 +112,7 @@ pub enum Token<'a> {
             "/" => BinaryOperator::Divide,
             "%" => BinaryOperator::Modulo,
             "==" => BinaryOperator::Equal,
+            "!=" => BinaryOperator::NotEqual,
             ">"=> BinaryOperator::GreaterThan,
             ">="=> BinaryOperator::GreaterThanOrEqual,
             "<"=> BinaryOperator::LessThan,

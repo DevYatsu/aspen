@@ -20,6 +20,7 @@ pub enum BinaryOperator {
     Modulo,
 
     Equal,
+    NotEqual,
     GreaterThan,
     GreaterThanOrEqual,
     LessThan,
@@ -39,7 +40,8 @@ impl BinaryOperator {
             | BinaryOperator::GreaterThan
             | BinaryOperator::GreaterThanOrEqual
             | BinaryOperator::LessThan
-            | BinaryOperator::LessThanOrEqual => 1,
+            | BinaryOperator::LessThanOrEqual
+            | BinaryOperator::NotEqual => 1,
             BinaryOperator::And | BinaryOperator::Or => 0,
         }
     }
@@ -53,6 +55,7 @@ impl BinaryOperator {
             BinaryOperator::Divide => "divide",
             BinaryOperator::Modulo => "take the modulo of",
             BinaryOperator::Equal => "check for equality of",
+            BinaryOperator::NotEqual => "check for non-equality of",
             BinaryOperator::GreaterThan => "check if",
             BinaryOperator::GreaterThanOrEqual => "check if",
             BinaryOperator::LessThan => "check if",
@@ -70,6 +73,7 @@ impl BinaryOperator {
             BinaryOperator::Exponent => "to the power of",
             BinaryOperator::Modulo => "by",
             BinaryOperator::Equal => "and",
+            BinaryOperator::NotEqual => "and",
             BinaryOperator::GreaterThan => "is greater than",
             BinaryOperator::GreaterThanOrEqual => "is greater than or equal to",
             BinaryOperator::LessThan => "is less than",
@@ -103,6 +107,7 @@ impl fmt::Display for BinaryOperator {
             BinaryOperator::Divide => write!(f, "/"),
             BinaryOperator::Modulo => write!(f, "%"),
             BinaryOperator::Equal => write!(f, "=="),
+            BinaryOperator::NotEqual => write!(f, "!="),
             BinaryOperator::GreaterThan => write!(f, ">"),
             BinaryOperator::GreaterThanOrEqual => write!(f, ">="),
             BinaryOperator::LessThan => write!(f, "<"),

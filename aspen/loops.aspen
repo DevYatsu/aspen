@@ -1,4 +1,6 @@
-while getx("str", 2) + 2 == int("233").power(2) {
+
+// these are tests, not sth that should be working
+while getx("str", 2) + 2 == int("233").power(2) && expr != nil {
     print("nothing")
 }
 
