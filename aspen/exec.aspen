@@ -1,0 +1,5 @@
+let x   nil
+
+@func a,b,c {
+    return a + b + c
+}
