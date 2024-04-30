@@ -387,6 +387,12 @@ impl<'s> Expr<'s> {
                     right: expr,
                 });
             }
+            Expr::StringConcatenation { ref mut right, .. } => {
+                *right = Box::new(Expr::StringConcatenation {
+                    left: right.clone(),
+                    right: expr,
+                })
+            }
             Expr::Binary { rhs, .. } => rhs.add_string_concatenation_to_most_rhs(expr),
             Expr::Assign {
                 value,
@@ -409,9 +415,17 @@ impl<'s> Expr<'s> {
                         }),
                     });
                 }
+                Expr::StringConcatenation { ref mut right, .. } => {
+                    *right = Box::new(Expr::StringConcatenation {
+                        left: right.clone(),
+                        right: expr,
+                    })
+                }
                 _ => return Err(AspenError::Unknown("token found: '..'".to_owned())),
             },
-            _ => return Err(AspenError::Unknown("token found: '..'".to_owned())),
+            _ => {
+                return Err(AspenError::Unknown("token found: '..'".to_owned()));
+            }
         };
 
         Ok(())
