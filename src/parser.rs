@@ -87,6 +87,11 @@ pub enum Expr<'a> {
         indexed: Box<Expr<'a>>,
         indexer: Box<Expr<'a>>,
     },
+
+    StringConcatenation {
+        left: Box<Expr<'a>>,
+        right: Box<Expr<'a>>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -379,6 +384,29 @@ pub fn parse_block<'s>(
                             Expr::modify_into_obj_indexing(parser, vars.last_mut().unwrap())?;
                         }
                         _ => return Err(AspenError::Unknown("token '[' found".to_owned())),
+                    };
+                }
+            }
+            Token::StringSeparator => {
+                if semi_colon_found {
+                    return Err(AspenError::Unknown("token '..' found".to_owned()));
+                }
+
+                if let Some(stmt) = statements.last_mut() {
+                    match stmt.as_mut() {
+                        Statement::Expr(base_expr) => {
+                            Expr::modify_into_string_concatenation(parser, base_expr)?;
+                        }
+                        Statement::Var(Var { value, .. }) => {
+                            Expr::modify_into_string_concatenation(parser, value)?;
+                        }
+                        Statement::Return(Return(vars)) => {
+                            Expr::modify_into_string_concatenation(
+                                parser,
+                                vars.last_mut().unwrap(),
+                            )?;
+                        }
+                        _ => return Err(AspenError::Unknown("token '..' found".to_owned())),
                     };
                 }
             }

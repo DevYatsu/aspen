@@ -58,6 +58,8 @@ pub enum Token<'a> {
     While,
     #[token("...", priority = 2)]
     SpreadOperator,
+    #[token("..", priority = 1)]
+    StringSeparator,
     #[token(".", priority = 0)]
     Dot,
     #[token(":")]
@@ -78,8 +80,6 @@ pub enum Token<'a> {
 
     #[regex(r#""([^"\\]|\\["\\bnfrt]|\\u\{[a-fA-F0-9]+})*""#, |lex| lex.slice())]
     String(&'a str),
-    #[token("..", priority = 1)]
-    StringSeparator,
 
     #[regex("true|false", |lex| lex.slice() == "true")]
     Bool(bool),

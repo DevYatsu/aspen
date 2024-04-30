@@ -80,6 +80,16 @@ impl<'s> Expr<'s> {
             indexer,
         };
     }
+    fn add_string_concatenation_to_most_rhs(&mut self, right: Box<Expr<'s>>) {
+        let mut expr = self;
+        while let Expr::Binary { rhs, .. } = expr {
+            expr = rhs;
+        }
+        *expr = Expr::StringConcatenation {
+            left: Box::new(expr.clone()),
+            right,
+        };
+    }
 
     /// Function to call after a '(' is consumed when the expression is expected to be a function call.
     pub fn modify_into_fn_call(
@@ -357,6 +367,56 @@ impl<'s> Expr<'s> {
         Ok(())
     }
 
+    /// Function to call after a '..' is consumed when the expression is expected to be a string concatenation.
+    pub fn modify_into_string_concatenation(
+        parser: &mut AspenParser<'s>,
+        base_expr: &mut Box<Expr<'s>>,
+    ) -> AspenResult<()> {
+        let e = Expr::parse(parser)?;
+
+        let expr = Box::new(e);
+        match base_expr.as_mut() {
+            Expr::Value(Value::Str(_))
+            | Expr::Id(_)
+            | Expr::FuncCall { .. }
+            | Expr::ObjIndexing { .. }
+            | Expr::ArrayIndexing { .. }
+            | Expr::Parenthesized(_) => {
+                *base_expr = Box::new(Expr::StringConcatenation {
+                    left: base_expr.clone(),
+                    right: expr,
+                });
+            }
+            Expr::Binary { rhs, .. } => rhs.add_string_concatenation_to_most_rhs(expr),
+            Expr::Assign {
+                value,
+                target,
+                operator,
+            } => match value.as_mut() {
+                Expr::Binary { rhs, .. } => rhs.add_string_concatenation_to_most_rhs(expr),
+                Expr::Value(Value::Str(_))
+                | Expr::Id(_)
+                | Expr::FuncCall { .. }
+                | Expr::ObjIndexing { .. }
+                | Expr::ArrayIndexing { .. }
+                | Expr::Parenthesized(_) => {
+                    *base_expr = Box::new(Expr::Assign {
+                        target: target.clone(),
+                        operator: operator.clone(),
+                        value: Box::new(Expr::StringConcatenation {
+                            left: value.clone(),
+                            right: expr,
+                        }),
+                    });
+                }
+                _ => return Err(AspenError::Unknown("token found: '..'".to_owned())),
+            },
+            _ => return Err(AspenError::Unknown("token found: '..'".to_owned())),
+        };
+
+        Ok(())
+    }
+
     /// Function to call after a ':' is consumed when the expression is expected to be a range.
     pub fn modify_into_range(
         parser: &mut AspenParser<'s>,
@@ -583,6 +643,9 @@ impl<'s> Expr<'s> {
                     Token::OpenParen => Expr::modify_into_fn_call(parser, &mut base_expr)?,
                     Token::OpenBracket => Expr::modify_into_array_indexing(parser, &mut base_expr)?,
                     Token::Dot => Expr::modify_into_obj_indexing(parser, &mut base_expr)?,
+                    Token::StringSeparator => {
+                        Expr::modify_into_string_concatenation(parser, &mut base_expr)?
+                    }
                     token if stop_tokens.contains(&token) => return Ok((base_expr, token)),
                     _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
                 },
