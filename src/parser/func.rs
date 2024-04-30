@@ -127,6 +127,8 @@ impl<'a> Func<'a> {
                                 if let Token::OpenBrace = end_token {
                                     break;
                                 }
+
+                                awaits_arg = true;
                             }
                         }
                     }

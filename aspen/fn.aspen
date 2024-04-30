@@ -18,7 +18,7 @@ x = add(1, x)
     num1 * num2 / 1 + 2 * 2 * add(1,2)
 }
 
-@multiply result, ...args {
+@multiply result: 1, ...args {
     for val -> args {
         result = result * val
     }
