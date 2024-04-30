@@ -41,7 +41,7 @@ pub enum AspenValue<'a> {
 
 pub type EvaluateResult<T> = Result<T, EvaluateError>;
 
-pub fn execute(stmts: Container<Statement<'_>>) -> AspenResult<()> {
+pub fn evaluate(stmts: Container<Statement<'_>>) -> AspenResult<()> {
     let mut table = AspenTable::new();
 
     for stmt in stmts.into_iter() {

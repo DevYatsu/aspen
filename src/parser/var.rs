@@ -53,43 +53,6 @@ impl<'a> Var<'a> {
 
         Ok(Var { variables, value }.into())
     }
-
-    pub fn parse_several_vars_or_complex_expr_or_newline(
-        parser: &mut AspenParser<'a>,
-        statements: &mut Container<Statement<'a>>,
-    ) -> AspenResult<()> {
-        loop {
-            let next = next_jump_space(parser)?;
-            match next {
-                Token::Newline => return Ok(()),
-                Token::Comma => {
-                    let stmt = Var::parse_after_comma(parser)?;
-                    statements.push(Box::new(stmt));
-                }
-                Token::OpenParen => {
-                    let stmt = statements.last_mut().unwrap();
-
-                    // this if is inevitably true
-                    if let Statement::Var(var) = stmt.as_mut() {
-                        let Var { value, .. } = var;
-                        Expr::modify_into_fn_call(parser, value)?;
-                    }
-                }
-                Token::BinaryOperator(bop) => {
-                    let stmt = statements.last_mut().unwrap();
-
-                    // this if is inevitably true
-                    if let Statement::Var(var) = stmt.as_mut() {
-                        let right_expr = Expr::parse(parser)?;
-
-                        let Var { value, .. } = var;
-                        Expr::modify_into_binary_op(value, right_expr, bop)?;
-                    }
-                }
-                _ => return Err(AspenError::ExpectedNewline),
-            };
-        }
-    }
 }
 
 crate::impl_from_for!(Var, Statement);

@@ -22,7 +22,8 @@ crate::impl_from_for!(Func, Statement);
 #[derive(Debug, Clone, PartialEq)]
 pub struct Argument<'a> {
     pub is_spread: bool,
-    pub value: &'a str,
+    pub identifier: &'a str,
+    pub base_value: Option<Box<Expr<'a>>>,
 }
 
 impl<'a> Func<'a> {
@@ -99,7 +100,7 @@ impl<'a> Func<'a> {
     fn parse_declaration_args(
         parser: &mut AspenParser<'a>,
     ) -> AspenResult<Container<Argument<'a>>> {
-        let mut args = vec![];
+        let mut args: Container<Argument<'a>> = vec![];
         let mut awaits_arg = true;
 
         loop {
@@ -107,6 +108,29 @@ impl<'a> Func<'a> {
 
             match token {
                 Token::OpenBrace => break,
+                // token is called range but it is just ':'
+                Token::Range if !awaits_arg => {
+                    if let Some(val) = args.last_mut() {
+                        let Argument {
+                            ref mut base_value, ..
+                        } = val.as_mut();
+
+                        match base_value {
+                            Some(_) => {
+                                return Err(AspenError::Unknown("token ':' found".to_owned()))
+                            }
+                            None => {
+                                let (expr, end_token) =
+                                    Expr::parse_until(parser, &[Token::Comma, Token::OpenBrace])?;
+                                *base_value = Some(expr);
+
+                                if let Token::OpenBrace = end_token {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
                 Token::Identifier(value) if awaits_arg => {
                     args.push(Box::new(value.into()));
                     awaits_arg = false
@@ -139,8 +163,12 @@ impl<'a> Func<'a> {
 }
 
 impl<'a> Argument<'a> {
-    pub fn new(value: &'a str, is_spread: bool) -> Self {
-        Self { is_spread, value }
+    pub fn new(identifier: &'a str, is_spread: bool) -> Self {
+        Self {
+            is_spread,
+            identifier,
+            base_value: None,
+        }
     }
 }
 

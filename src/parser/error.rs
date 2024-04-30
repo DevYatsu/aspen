@@ -1,6 +1,6 @@
 use std::{error::Error, fmt};
 
-use crate::{execute::error::ExecuteError, lexer::LexingError};
+use crate::{evaluate::error::EvaluateError, lexer::LexingError};
 
 pub type AspenResult<T> = Result<T, AspenError>;
 
@@ -8,7 +8,7 @@ pub type AspenResult<T> = Result<T, AspenError>;
 pub enum AspenError {
     IoError(std::io::Error),
     Lexing(LexingError),
-    Execute(ExecuteError),
+    Evaluate(EvaluateError),
 
     ExpectedSpace,
     ExpectedNewline,
@@ -25,7 +25,7 @@ impl fmt::Display for AspenError {
         match self {
             AspenError::IoError(e) => e.fmt(f),
             AspenError::Lexing(e) => e.fmt(f),
-            AspenError::Execute(e) => e.fmt(f),
+            AspenError::Evaluate(e) => e.fmt(f),
 
             AspenError::Eof => write!(f, "Unexpected end of input!"),
 

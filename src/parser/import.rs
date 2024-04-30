@@ -31,20 +31,4 @@ impl<'a> Import<'a> {
             _ => Err(AspenError::Expected("an import value".to_owned())),
         }
     }
-
-    pub fn parse_several_or_newline(
-        parser: &mut AspenParser<'a>,
-        statements: &mut Container<Statement<'a>>,
-    ) -> AspenResult<()> {
-        loop {
-            match next_jump_space(parser)? {
-                Token::Newline => return Ok(()),
-                Token::Comma => {
-                    let stmt = Import::parse_after_comma(parser)?;
-                    statements.push(Box::new(stmt));
-                }
-                _ => return Err(AspenError::ExpectedNewline),
-            };
-        }
-    }
 }

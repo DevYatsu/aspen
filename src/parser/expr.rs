@@ -176,7 +176,7 @@ impl<'s> Expr<'s> {
         parser: &mut AspenParser<'s>,
         base_expr: &mut Box<Expr<'s>>,
     ) -> AspenResult<()> {
-        let expr = Expr::parse_until(parser, Token::CloseBracket)?;
+        let (expr, _) = Expr::parse_until(parser, &[Token::CloseBracket])?;
         match base_expr.as_mut() {
             Expr::Id(_)
             | Expr::FuncCall { .. }
@@ -557,16 +557,15 @@ impl<'s> Expr<'s> {
     ///
     /// **NOTE: We assume '(' was already consumed! And parses the ending ')'**
     pub fn parse_parenthesized(parser: &mut AspenParser<'s>) -> AspenResult<Expr<'s>> {
-        Ok(Expr::Parenthesized(Self::parse_until(
-            parser,
-            Token::CloseParen,
-        )?))
+        Ok(Expr::Parenthesized(
+            Self::parse_until(parser, &[Token::CloseParen])?.0,
+        ))
     }
 
     pub fn parse_until(
         parser: &mut AspenParser<'s>,
-        stop_token: Token<'s>,
-    ) -> AspenResult<Box<Expr<'s>>> {
+        stop_tokens: &[Token<'s>],
+    ) -> AspenResult<(Box<Expr<'s>>, Token<'s>)> {
         let mut base_expr = Box::new(Expr::parse(parser)?);
         let mut bop: Option<BinaryOperator> = None; // bop for binary operator
 
@@ -584,7 +583,7 @@ impl<'s> Expr<'s> {
                     Token::OpenParen => Expr::modify_into_fn_call(parser, &mut base_expr)?,
                     Token::OpenBracket => Expr::modify_into_array_indexing(parser, &mut base_expr)?,
                     Token::Dot => Expr::modify_into_obj_indexing(parser, &mut base_expr)?,
-                    token if token == stop_token => return Ok(base_expr),
+                    token if stop_tokens.contains(&token) => return Ok((base_expr, token)),
                     _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
                 },
                 token if bop.is_some() => {

@@ -3,7 +3,7 @@ use std::{error::Error, fmt};
 use crate::parser::error::AspenError;
 
 #[derive(Debug)]
-pub enum ExecuteError {
+pub enum EvaluateError {
     UnknownFunc(String),
     FuncAlreadyDefined(String),
 
@@ -11,25 +11,25 @@ pub enum ExecuteError {
     VarAlreadyDefined(String),
 }
 
-impl Error for ExecuteError {}
+impl Error for EvaluateError {}
 
-impl fmt::Display for ExecuteError {
+impl fmt::Display for EvaluateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ExecuteError::UnknownFunc(name) => write!(f, "Unknown function: {}", name),
-            ExecuteError::FuncAlreadyDefined(name) => {
+            EvaluateError::UnknownFunc(name) => write!(f, "Unknown function: {}", name),
+            EvaluateError::FuncAlreadyDefined(name) => {
                 write!(f, "Function already defined: {}", name)
             }
-            ExecuteError::UnknownVar(name) => write!(f, "Unknown variable: {}", name),
-            ExecuteError::VarAlreadyDefined(name) => {
+            EvaluateError::UnknownVar(name) => write!(f, "Unknown variable: {}", name),
+            EvaluateError::VarAlreadyDefined(name) => {
                 write!(f, "Variable already defined: {}", name)
             }
         }
     }
 }
 
-impl From<ExecuteError> for AspenError {
-    fn from(value: ExecuteError) -> Self {
-        AspenError::Execute(value)
+impl From<EvaluateError> for AspenError {
+    fn from(value: EvaluateError) -> Self {
+        AspenError::Evaluate(value)
     }
 }

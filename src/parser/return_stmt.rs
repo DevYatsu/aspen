@@ -24,45 +24,4 @@ impl<'a> Return<'a> {
 
         Ok(value)
     }
-
-    pub fn parse_several_or_complex_expr_or_newline(
-        parser: &mut AspenParser<'a>,
-        statements: &mut Container<Statement<'a>>,
-    ) -> AspenResult<()> {
-        loop {
-            match next_jump_space(parser)? {
-                Token::Newline => return Ok(()),
-                Token::Comma => {
-                    let expr = Return::parse_after_comma(parser)?;
-                    let last = statements.last_mut().unwrap();
-
-                    match last.as_mut() {
-                        Statement::Return(Return(vec)) => vec.push(Box::new(expr)),
-                        _ => unreachable!(),
-                    }
-                }
-                Token::OpenParen => {
-                    let stmt = statements.last_mut().unwrap();
-
-                    // this if is inevitably true
-                    if let Statement::Return(Return(vec)) = stmt.as_mut() {
-                        let last_expr = vec.last_mut().unwrap();
-                        Expr::modify_into_fn_call(parser, last_expr)?;
-                    }
-                }
-                Token::BinaryOperator(bop) => {
-                    let stmt = statements.last_mut().unwrap();
-
-                    // this if is inevitably true
-                    if let Statement::Return(Return(vec)) = stmt.as_mut() {
-                        let right_expr = Expr::parse(parser)?;
-
-                        let last_expr = vec.last_mut().unwrap();
-                        Expr::modify_into_binary_op(last_expr, right_expr, bop)?;
-                    }
-                }
-                _ => return Err(AspenError::ExpectedNewline),
-            };
-        }
-    }
 }

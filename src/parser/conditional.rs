@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::BorrowMut;
 
 use crate::lexer::Token;
 
@@ -30,7 +30,7 @@ impl<'s> If<'s> {
     /// **NOTE: We assume "if" is already consumed by the parser!**
     pub fn parse(parser: &mut AspenParser<'s>) -> AspenResult<Statement<'s>> {
         expect_space(parser)?;
-        let condition = Expr::parse_until(parser, Token::OpenBrace)?;
+        let (condition, _) = Expr::parse_until(parser, &[Token::OpenBrace])?;
         let body = parse_block(parser, Some(Token::CloseBrace))?;
 
         Ok(If {
@@ -43,7 +43,7 @@ impl<'s> If<'s> {
 
     pub fn parse_other(parser: &mut AspenParser<'s>) -> AspenResult<IfOther<'s>> {
         expect_space(parser)?;
-        let condition = Expr::parse_until(parser, Token::OpenBrace)?;
+        let (condition, _) = Expr::parse_until(parser, &[Token::OpenBrace])?;
         let body = parse_block(parser, Some(Token::CloseBrace))?;
 
         Ok(IfOther::If(If {
