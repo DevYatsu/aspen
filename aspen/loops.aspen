@@ -1,4 +1,4 @@
-while true == false {
+while getx("str", 2) + 2 == int("233").power(2) {
     print("nothing")
 }
 

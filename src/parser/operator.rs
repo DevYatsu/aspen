@@ -24,6 +24,9 @@ pub enum BinaryOperator {
     GreaterThanOrEqual,
     LessThan,
     LessThanOrEqual,
+
+    And,
+    Or,
 }
 
 impl BinaryOperator {
@@ -37,6 +40,7 @@ impl BinaryOperator {
             | BinaryOperator::GreaterThanOrEqual
             | BinaryOperator::LessThan
             | BinaryOperator::LessThanOrEqual => 1,
+            BinaryOperator::And | BinaryOperator::Or => 0,
         }
     }
 
@@ -53,6 +57,8 @@ impl BinaryOperator {
             BinaryOperator::GreaterThanOrEqual => "check if",
             BinaryOperator::LessThan => "check if",
             BinaryOperator::LessThanOrEqual => "check if",
+            BinaryOperator::And => "use 'and' operator (&&)",
+            BinaryOperator::Or => "use 'or' operator (||)",
         }
     }
     pub fn get_proposition(&self) -> &'static str {
@@ -68,6 +74,8 @@ impl BinaryOperator {
             BinaryOperator::GreaterThanOrEqual => "is greater than or equal to",
             BinaryOperator::LessThan => "is less than",
             BinaryOperator::LessThanOrEqual => "is less than or equal to",
+            BinaryOperator::And => "with",
+            BinaryOperator::Or => "with",
         }
     }
 }
@@ -99,6 +107,8 @@ impl fmt::Display for BinaryOperator {
             BinaryOperator::GreaterThanOrEqual => write!(f, ">="),
             BinaryOperator::LessThan => write!(f, "<"),
             BinaryOperator::LessThanOrEqual => write!(f, "<="),
+            BinaryOperator::And => write!(f, "&&"),
+            BinaryOperator::Or => write!(f, "||"),
         }
     }
 }
