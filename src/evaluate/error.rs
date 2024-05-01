@@ -1,7 +1,5 @@
 use std::{error::Error, fmt};
 
-use crate::parser::error::AspenError;
-
 #[derive(Debug)]
 pub enum EvaluateError {
     UnknownFunc(String),
@@ -25,11 +23,5 @@ impl fmt::Display for EvaluateError {
                 write!(f, "Variable already defined: {}", name)
             }
         }
-    }
-}
-
-impl From<EvaluateError> for AspenError {
-    fn from(value: EvaluateError) -> Self {
-        AspenError::Evaluate(value)
     }
 }

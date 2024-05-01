@@ -10,18 +10,18 @@ use super::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct If<'a> {
-    pub condition: Box<Expr<'a>>,
-    pub body: Block<'a>,
-    pub other: Option<Box<IfOther<'a>>>,
+pub struct If<'s> {
+    pub condition: Box<Expr<'s>>,
+    pub body: Block<'s>,
+    pub other: Option<Box<IfOther<'s>>>,
 }
 
 crate::impl_from_for!(If, Statement);
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum IfOther<'a> {
-    If(If<'a>),
-    Else(Block<'a>),
+pub enum IfOther<'s> {
+    If(If<'s>),
+    Else(Block<'s>),
 }
 
 impl<'s> If<'s> {
@@ -53,7 +53,11 @@ impl<'s> If<'s> {
         }))
     }
 
-    pub fn add_other_at_if_end(&mut self, other_value: IfOther<'s>) -> AspenResult<()> {
+    pub fn add_other_at_if_end(
+        &mut self,
+        parser: &mut AspenParser,
+        other_value: IfOther<'s>,
+    ) -> AspenResult<()> {
         if let Some(if_other) = self.other.as_mut() {
             let mut current = if_other;
             loop {
@@ -68,7 +72,7 @@ impl<'s> If<'s> {
                         }
                     }
                     IfOther::Else(_) => {
-                        return Err(AspenError::Unknown(
+                        return Err(AspenError::unknown(parser,
                             "'other' block found, the 'if' statement already possesses an 'else' clause"
                                 .to_owned(),
                         ));

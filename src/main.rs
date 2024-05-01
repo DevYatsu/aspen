@@ -1,4 +1,4 @@
-use crate::{evaluate::evaluate, lexer::Token, parser::parse_aspen};
+use crate::{lexer::Token, parser::parse_aspen};
 use dialoguer::{theme::ColorfulTheme, Select};
 use logos::Logos;
 use parser::error::AspenError;

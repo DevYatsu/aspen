@@ -1,8 +1,7 @@
 use hashbrown::HashMap;
-use rug::{Float, Integer};
+use rug::{float::OrdFloat, Integer};
 
 use crate::parser::{
-    error::AspenResult,
     func::{Argument, Func},
     utils::Block,
     value::Value,
@@ -26,14 +25,14 @@ pub struct AspenFn<'a> {
     body: Box<Block<'a>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AspenValue<'a> {
     Nil,
     Str(String),
     Bool(bool),
 
     Int(Integer),
-    Float(Float),
+    Float(OrdFloat),
 
     Array(Container<AspenValue<'a>>),
     Object(HashMap<&'a str, AspenValue<'a>>),
@@ -41,7 +40,7 @@ pub enum AspenValue<'a> {
 
 pub type EvaluateResult<T> = Result<T, EvaluateError>;
 
-pub fn evaluate(stmts: Container<Statement<'_>>) -> AspenResult<()> {
+pub fn evaluate(stmts: Container<Statement<'_>>) -> EvaluateResult<()> {
     let mut table = AspenTable::new();
 
     for stmt in stmts.into_iter() {

@@ -1,16 +1,18 @@
-use crate::lexer::{Float, Integer, Token};
+use rug::float::OrdFloat;
+
+use crate::lexer::{Integer, Token};
 
 use super::{
     error::{AspenError, AspenResult},
     utils::TokenOption,
-    Expr,
+    AspenParser, Expr,
 };
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value<'a> {
-    Str(&'a str),
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Value<'s> {
+    Str(&'s str),
     Int(Integer),
-    Float(Float),
+    Float(OrdFloat),
     Bool(bool),
     Nil,
 }
@@ -18,14 +20,14 @@ pub enum Value<'a> {
 /// Parses a value.
 ///
 /// **NOTE: We assume the current token is a value!**
-pub fn parse_value(token: Token<'_>) -> AspenResult<Value<'_>> {
+pub fn parse_value<'s>(parser: &mut AspenParser<'s>, token: Token<'s>) -> AspenResult<Value<'s>> {
     let value = match token {
         Token::Bool(b) => b.into(),
         Token::String(s) => s.into(),
         Token::Int(i) => i.into(),
         Token::Float(f) => f.into(),
         Token::Nil => Value::Nil,
-        _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
+        _ => return Err(AspenError::expected(parser, "a valid <expr>".to_owned())),
     };
 
     Ok(value)
@@ -48,29 +50,29 @@ pub fn parse_value_or_return_token(token: Token<'_>) -> AspenResult<TokenOption<
 
 crate::impl_from_for!(Value, Expr);
 
-impl<'a> From<Value<'a>> for TokenOption<'a, Value<'a>> {
-    fn from(value: Value<'a>) -> TokenOption<'a, Value<'a>> {
+impl<'s> From<Value<'s>> for TokenOption<'s, Value<'s>> {
+    fn from(value: Value<'s>) -> TokenOption<'s, Value<'s>> {
         TokenOption::Some(value)
     }
 }
 
-impl<'a> From<bool> for Value<'a> {
+impl<'s> From<bool> for Value<'s> {
     fn from(value: bool) -> Self {
         Value::Bool(value)
     }
 }
-impl<'a> From<&'a str> for Value<'a> {
-    fn from(value: &'a str) -> Self {
+impl<'s> From<&'s str> for Value<'s> {
+    fn from(value: &'s str) -> Self {
         Value::Str(value)
     }
 }
-impl<'a> From<Integer> for Value<'a> {
+impl<'s> From<Integer> for Value<'s> {
     fn from(value: Integer) -> Self {
         Value::Int(value)
     }
 }
-impl<'a> From<Float> for Value<'a> {
-    fn from(value: Float) -> Self {
+impl<'s> From<OrdFloat> for Value<'s> {
+    fn from(value: OrdFloat) -> Self {
         Value::Float(value)
     }
 }

@@ -38,7 +38,8 @@ impl<'s> Expr<'s> {
                 match next_token {
                     Token::Identifier(value) => Expr::SpeadId(value),
                     _ => {
-                        return Err(AspenError::Expected(
+                        return Err(AspenError::expected(
+                            parser,
                             "an identifier following the '...'".to_owned(),
                         ))
                     }
@@ -49,14 +50,14 @@ impl<'s> Expr<'s> {
 
                 let name = match next_jump_multispace(parser)? {
                     Token::String(name) => name,
-                    _ => return Err(AspenError::Expected("an import value".to_owned())),
+                    _ => return Err(AspenError::expected(parser, "an import value".to_owned())),
                 };
 
                 expect_token(parser, Token::CloseParen)?;
 
                 Expr::Import(name)
             }
-            token => parse_value(token)?.into(),
+            token => parse_value(parser, token)?.into(),
         };
 
         Ok(expr)
@@ -185,9 +186,9 @@ impl<'s> Expr<'s> {
                         }
                     };
                 }
-                _ => return Err(AspenError::Unknown("token '(' found".to_owned())),
+                _ => return Err(AspenError::unknown(parser, "token '(' found".to_owned())),
             },
-            _ => return Err(AspenError::Unknown("token '(' found".to_owned())),
+            _ => return Err(AspenError::unknown(parser, "token '(' found".to_owned())),
         };
 
         Ok(())
@@ -271,9 +272,9 @@ impl<'s> Expr<'s> {
                         }
                     };
                 }
-                _ => return Err(AspenError::Unknown("token found: '['".to_owned())),
+                _ => return Err(AspenError::unknown(parser, "token found: '['".to_owned())),
             },
-            _ => return Err(AspenError::Unknown("token found: '['".to_owned())),
+            _ => return Err(AspenError::unknown(parser, "token found: '['".to_owned())),
         };
 
         Ok(())
@@ -289,10 +290,13 @@ impl<'s> Expr<'s> {
         match &e {
             Expr::Id(_) => (),
             _ => {
-                return Err(AspenError::Unknown(format!(
-                    "token '{:?}', an object can only be accessed with an identifier",
-                    e
-                )));
+                return Err(AspenError::unknown(
+                    parser,
+                    format!(
+                        "token '{:?}', an object can only be accessed with an identifier",
+                        e
+                    ),
+                ));
             }
         }
 
@@ -371,9 +375,9 @@ impl<'s> Expr<'s> {
                         }
                     };
                 }
-                _ => return Err(AspenError::Unknown("token found: '.'".to_owned())),
+                _ => return Err(AspenError::unknown(parser, "token found: '.'".to_owned())),
             },
-            _ => return Err(AspenError::Unknown("token found: '.'".to_owned())),
+            _ => return Err(AspenError::unknown(parser, "token found: '.'".to_owned())),
         };
 
         Ok(())
@@ -433,10 +437,10 @@ impl<'s> Expr<'s> {
                         right: expr,
                     })
                 }
-                _ => return Err(AspenError::Unknown("token found: '..'".to_owned())),
+                _ => return Err(AspenError::unknown(parser, "token found: '..'".to_owned())),
             },
             _ => {
-                return Err(AspenError::Unknown("token found: '..'".to_owned()));
+                return Err(AspenError::unknown(parser, "token found: '..'".to_owned()));
             }
         };
 
@@ -453,7 +457,8 @@ impl<'s> Expr<'s> {
         match base_expr.as_mut() {
             Expr::Range { start, end, step } => {
                 if step.is_some() {
-                    return Err(AspenError::Unknown(
+                    return Err(AspenError::unknown(
+                        parser,
                         "token ':' found, a Range has three parts: start:end:step".to_owned(),
                     ));
                 }
@@ -484,7 +489,8 @@ impl<'s> Expr<'s> {
             } => match value.as_mut() {
                 Expr::Range { start, end, step } => {
                     if step.is_some() {
-                        return Err(AspenError::Unknown(
+                        return Err(AspenError::unknown(
+                            parser,
                             "token ':' found, a Range has three parts: start:end:step".to_owned(),
                         ));
                     }
@@ -518,9 +524,9 @@ impl<'s> Expr<'s> {
                         .into(),
                     });
                 }
-                _ => return Err(AspenError::Unknown("token ':' found".to_owned())),
+                _ => return Err(AspenError::unknown(parser, "token ':' found".to_owned())),
             },
-            _ => return Err(AspenError::Unknown("token ':' found".to_owned())),
+            _ => return Err(AspenError::unknown(parser, "token ':' found".to_owned())),
         };
 
         Ok(())
@@ -528,6 +534,7 @@ impl<'s> Expr<'s> {
 
     /// Function to call after a [`BinaryOperator`] is consumed when the expression is expected to be a binary operation.
     pub fn modify_into_binary_op(
+        parser: &mut AspenParser,
         base_expr: &mut Box<Expr<'s>>,
         right_expr: Expr<'s>,
         bop: BinaryOperator,
@@ -625,14 +632,17 @@ impl<'s> Expr<'s> {
                 .into();
             }
             _ => {
-                return Err(AspenError::Unknown(format!(
-                    "token '{}', cannot {} {:?} {:?} {}",
-                    bop,
-                    bop.get_verb(),
-                    base_expr,
-                    right_expr,
-                    bop.get_proposition(),
-                )))
+                return Err(AspenError::unknown(
+                    parser,
+                    format!(
+                        "token '{}', cannot {} {:?} {:?} {}",
+                        bop,
+                        bop.get_verb(),
+                        base_expr,
+                        right_expr,
+                        bop.get_proposition(),
+                    ),
+                ))
             }
         };
 
@@ -673,11 +683,21 @@ impl<'s> Expr<'s> {
                         Expr::modify_into_string_concatenation(parser, &mut base_expr)?
                     }
                     token if stop_tokens.contains(&token) => return Ok((base_expr, token)),
-                    _ => return Err(AspenError::Unknown(format!("token '{:?}' found", token))),
+                    _ => {
+                        return Err(AspenError::unknown(
+                            parser,
+                            format!("token '{:?}' found", token),
+                        ))
+                    }
                 },
                 token if bop.is_some() => {
                     let right_expr = Expr::parse_with_token(parser, token)?;
-                    Expr::modify_into_binary_op(&mut base_expr, right_expr, bop.take().unwrap())?;
+                    Expr::modify_into_binary_op(
+                        parser,
+                        &mut base_expr,
+                        right_expr,
+                        bop.take().unwrap(),
+                    )?;
                 }
                 _ => unreachable!(),
             }
@@ -723,12 +743,16 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
                             }
                             Token::CloseBracket => return Ok(arr),
                             _ => {
-                                return Err(AspenError::Expected("a close bracket ']'".to_owned()))
+                                return Err(AspenError::expected(
+                                    parser,
+                                    "a close bracket ']'".to_owned(),
+                                ))
                             }
                         },
                         token if bop.is_some() => {
                             let right_expr = Expr::parse_with_token(parser, token)?;
                             Expr::modify_into_binary_op(
+                                parser,
                                 base_expr,
                                 right_expr,
                                 bop.take().unwrap(),
@@ -799,10 +823,11 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, B
             Token::BinaryOperator(op) if key.is_some() => {
                 let expr = Expr::parse(parser)?;
                 let mut val = value.take().unwrap();
-                Expr::modify_into_binary_op(&mut val, expr, op)?;
+                Expr::modify_into_binary_op(parser, &mut val, expr, op)?;
                 value = Some(val);
             }
-            Token::SpreadOperator if key.is_some() => return Err(AspenError::Expected(
+            Token::SpreadOperator if key.is_some() => return Err(AspenError::expected(
+                parser,
                 "an object or an array: either do {..<spread_variable>} or [...<spread_variable>]"
                     .to_owned(),
             )),
@@ -815,7 +840,8 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, B
                         value = Some(Box::new(Expr::SpeadId(ident)));
                     }
                     _ => {
-                        return Err(AspenError::Expected(
+                        return Err(AspenError::expected(
+                            parser,
                             "an identifier following the '...'".to_owned(),
                         ))
                     }
@@ -829,7 +855,7 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, B
             _ if key.is_some() => {
                 value = Some(Box::new(Expr::parse_with_token(parser, token)?));
             }
-            _ => return Err(AspenError::Expected("a valid <expr>".to_owned())),
+            _ => return Err(AspenError::expected(parser, "a valid <expr>".to_owned())),
         };
     }
 }

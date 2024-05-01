@@ -7,10 +7,10 @@ use super::{
 use crate::parser::{AspenParser, Token};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct For<'a> {
-    pub args: Vec<&'a str>,
-    pub indexed: Box<Expr<'a>>,
-    pub body: Box<Block<'a>>,
+pub struct For<'s> {
+    pub args: Vec<&'s str>,
+    pub indexed: Box<Expr<'s>>,
+    pub body: Box<Block<'s>>,
 }
 
 impl<'s> For<'s> {
@@ -48,7 +48,12 @@ impl<'s> For<'s> {
                 }
                 Token::In => break,
                 Token::Comma if !awaits_arg => awaits_arg = true,
-                _ => return Err(AspenError::Expected("a valid argument or '->'".to_owned())),
+                _ => {
+                    return Err(AspenError::expected(
+                        parser,
+                        "a valid argument or '->'".to_owned(),
+                    ))
+                }
             };
         }
 

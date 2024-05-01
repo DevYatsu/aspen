@@ -41,7 +41,7 @@ pub enum Statement<'a> {
 
 pub type Container<T> = Vec<Box<T>>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// Represents an Aspen Expression!
 pub enum Expr<'a> {
     Value(Value<'a>),
@@ -120,7 +120,7 @@ pub fn parse_block<'s>(
     let mut semi_colon_found = false;
 
     while let Some(result_token) = parser.lexer.next() {
-        let token = result_token?;
+        let token = result_token.map_err(|e| AspenError::from_lexing_error(parser, e))?;
 
         match token {
             Token::Return => {
@@ -141,7 +141,7 @@ pub fn parse_block<'s>(
             }
             Token::Comma if expect_stmt_end => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown("token ',' found".to_owned()));
+                    return Err(AspenError::unknown(parser, "token ',' found".to_owned()));
                 }
 
                 if let Some(stmt) = statements.last_mut() {
@@ -154,10 +154,18 @@ pub fn parse_block<'s>(
                             let stmt = Return::parse_after_comma(parser)?;
                             vec.push(Box::new(stmt))
                         }
-                        _ => return Err(error::AspenError::Unknown("token ',' found".to_owned())),
+                        _ => {
+                            return Err(error::AspenError::unknown(
+                                parser,
+                                "token ',' found".to_owned(),
+                            ))
+                        }
                     };
                 } else {
-                    return Err(error::AspenError::Unknown("token ',' found".to_owned()));
+                    return Err(error::AspenError::unknown(
+                        parser,
+                        "token ',' found".to_owned(),
+                    ));
                 };
                 continue;
             }
@@ -182,45 +190,45 @@ pub fn parse_block<'s>(
             }
             Token::Other => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown(format!(
-                        "token '{}' found",
-                        parser.lexer.slice()
-                    )));
+                    return Err(AspenError::unknown(
+                        parser,
+                        format!("token '{}' found", parser.lexer.slice()),
+                    ));
                 }
 
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::If(ref mut if_stmt) => {
                             let value = If::parse_other(parser)?;
-                            if_stmt.add_other_at_if_end(value)?;
+                            if_stmt.add_other_at_if_end(parser, value)?;
                             continue;
                         }
                         _ => {
-                            return Err(AspenError::Unknown(format!(
-                                "token '{}' found",
-                                parser.lexer.slice()
-                            )))
+                            return Err(AspenError::unknown(
+                                parser,
+                                format!("token '{}' found", parser.lexer.slice()),
+                            ))
                         }
                     };
                 }
             }
             Token::Else => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown("token 'else' found".to_owned()));
+                    return Err(AspenError::unknown(parser, "token 'else' found".to_owned()));
                 }
 
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::If(ref mut if_stmt) => {
                             let value = If::parse_else(parser)?;
-                            if_stmt.add_other_at_if_end(value)?;
+                            if_stmt.add_other_at_if_end(parser, value)?;
                             continue;
                         }
                         _ => {
-                            return Err(AspenError::Unknown(format!(
-                                "token '{}' found",
-                                parser.lexer.slice()
-                            )))
+                            return Err(AspenError::unknown(
+                                parser,
+                                format!("token '{}' found", parser.lexer.slice()),
+                            ))
                         }
                     };
                 }
@@ -257,7 +265,10 @@ pub fn parse_block<'s>(
             }
             Token::AssignOperator(aop) => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown(format!("token '{}' found", aop)));
+                    return Err(AspenError::unknown(
+                        parser,
+                        format!("token '{}' found", aop),
+                    ));
                 }
 
                 if let Some(stmt) = statements.last_mut() {
@@ -270,15 +281,24 @@ pub fn parse_block<'s>(
                         }
                         .into();
                     } else {
-                        return Err(error::AspenError::Unknown(format!("token '{}' found", aop)));
+                        return Err(error::AspenError::unknown(
+                            parser,
+                            format!("token '{}' found", aop),
+                        ));
                     }
                 } else {
-                    return Err(error::AspenError::Unknown(format!("token '{}' found", aop)));
+                    return Err(error::AspenError::unknown(
+                        parser,
+                        format!("token '{}' found", aop),
+                    ));
                 };
             }
             Token::BinaryOperator(bop) => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown(format!("token '{}' found", bop)));
+                    return Err(AspenError::unknown(
+                        parser,
+                        format!("token '{}' found", bop),
+                    ));
                 }
 
                 if let Some(stmt) = statements.last_mut() {
@@ -288,27 +308,30 @@ pub fn parse_block<'s>(
                             value: base_expr, ..
                         }) => {
                             let expr = Expr::parse(parser)?;
-                            Expr::modify_into_binary_op(base_expr, expr, bop)?;
+                            Expr::modify_into_binary_op(parser, base_expr, expr, bop)?;
                         }
                         Statement::Return(Return(vec)) => {
                             let last = vec.last_mut().unwrap();
                             let expr = Expr::parse(parser)?;
-                            Expr::modify_into_binary_op(last, expr, bop)?;
+                            Expr::modify_into_binary_op(parser, last, expr, bop)?;
                         }
                         _ => {
-                            return Err(error::AspenError::Unknown(format!(
-                                "token '{}' found",
-                                bop
-                            )))
+                            return Err(error::AspenError::unknown(
+                                parser,
+                                format!("token '{}' found", bop),
+                            ))
                         }
                     };
                 } else {
-                    return Err(error::AspenError::Unknown(format!("token '{}' found", bop)));
+                    return Err(error::AspenError::unknown(
+                        parser,
+                        format!("token '{}' found", bop),
+                    ));
                 };
             }
             Token::OpenParen => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown("token '(' found".to_owned()));
+                    return Err(AspenError::unknown(parser, "token '(' found".to_owned()));
                 }
 
                 if let Some(stmt) = statements.last_mut() {
@@ -334,7 +357,7 @@ pub fn parse_block<'s>(
             }
             Token::Range => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown("token ':' found".to_owned()));
+                    return Err(AspenError::unknown(parser, "token ':' found".to_owned()));
                 }
 
                 if let Some(stmt) = statements.last_mut() {
@@ -352,11 +375,11 @@ pub fn parse_block<'s>(
                     };
                 }
 
-                return Err(AspenError::Unknown("token ':' found".to_owned()));
+                return Err(AspenError::unknown(parser, "token ':' found".to_owned()));
             }
             Token::Dot => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown("token '.' found".to_owned()));
+                    return Err(AspenError::unknown(parser, "token '.' found".to_owned()));
                 }
 
                 if let Some(stmt) = statements.last_mut() {
@@ -370,13 +393,13 @@ pub fn parse_block<'s>(
                         Statement::Return(Return(vars)) => {
                             Expr::modify_into_obj_indexing(parser, vars.last_mut().unwrap())?;
                         }
-                        _ => return Err(AspenError::Unknown("token '[' found".to_owned())),
+                        _ => return Err(AspenError::unknown(parser, "token '[' found".to_owned())),
                     };
                 }
             }
             Token::StringSeparator => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown("token '..' found".to_owned()));
+                    return Err(AspenError::unknown(parser, "token '..' found".to_owned()));
                 }
 
                 if let Some(stmt) = statements.last_mut() {
@@ -393,13 +416,16 @@ pub fn parse_block<'s>(
                                 vars.last_mut().unwrap(),
                             )?;
                         }
-                        _ => return Err(AspenError::Unknown("token '..' found".to_owned())),
+                        _ => {
+                            return Err(AspenError::unknown(parser, "token '..' found".to_owned()))
+                        }
                     };
                 }
             }
             Token::OpenBracket => {
                 if semi_colon_found {
-                    return Err(AspenError::Unknown(
+                    return Err(AspenError::unknown(
+                        parser,
                         "token '[' found, cannot write arrays expressions in global context"
                             .to_owned(),
                     ));
@@ -416,7 +442,7 @@ pub fn parse_block<'s>(
                         Statement::Return(Return(vars)) => {
                             Expr::modify_into_array_indexing(parser, vars.last_mut().unwrap())?;
                         }
-                        _ => return Err(AspenError::Unknown("token '[' found".to_owned())),
+                        _ => return Err(AspenError::unknown(parser, "token '[' found".to_owned())),
                     };
                 }
             }
@@ -428,22 +454,22 @@ pub fn parse_block<'s>(
             Token::Spaces => (),
             _ => {
                 if expect_stmt_end {
-                    return Err(AspenError::ExpectedNewline);
+                    return Err(AspenError::expected_newline(parser));
                 } else {
-                    return Err(AspenError::Unknown(format!(
-                        "token '{}' found",
-                        parser.lexer.slice()
-                    )));
+                    return Err(AspenError::unknown(
+                        parser,
+                        format!("token '{}' found", parser.lexer.slice()),
+                    ));
                 }
             }
         }
     }
 
     if stop_on.is_some() {
-        return Err(error::AspenError::Expected(format!(
-            "token '{:?}'",
-            stop_on
-        )));
+        return Err(error::AspenError::expected(
+            parser,
+            format!("token '{:?}'", stop_on),
+        ));
     }
 
     Ok(Block::new(statements))

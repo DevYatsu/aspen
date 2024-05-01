@@ -17,7 +17,7 @@ pub fn expect_space(parser: &mut AspenParser<'_>) -> AspenResult<()> {
 
     match token {
         Token::Newline | Token::Spaces => (),
-        _ => return Err(AspenError::ExpectedSpace),
+        _ => return Err(AspenError::expected_space(parser)),
     }
 
     Ok(())
@@ -33,11 +33,10 @@ pub fn expect_token<'s>(
     match token {
         token if token == expected_token => (),
         _ => {
-            return Err(AspenError::Expected(format!(
-                "'{:?}', found '{}'",
-                expected_token,
-                parser.lexer.slice()
-            )))
+            return Err(AspenError::expected(
+                parser,
+                format!("'{:?}', found '{}'", expected_token, parser.lexer.slice()),
+            ))
         }
     }
 
@@ -52,11 +51,11 @@ pub fn expect_newline(parser: &mut AspenParser<'_>) -> AspenResult<()> {
             let next_token = next_token(parser)?;
 
             if next_token != Token::Newline {
-                return Err(AspenError::ExpectedNewline);
+                return Err(AspenError::expected_newline(parser));
             }
         }
         Token::Newline => (),
-        _ => return Err(AspenError::ExpectedNewline),
+        _ => return Err(AspenError::expected_newline(parser)),
     }
 
     Ok(())
@@ -65,7 +64,7 @@ pub fn expect_newline(parser: &mut AspenParser<'_>) -> AspenResult<()> {
 pub fn next_token<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Token<'s>> {
     match parser.lexer.next() {
         Some(result_token) => {
-            let token = result_token?;
+            let token = result_token.map_err(|e| AspenError::from_lexing_error(parser, e))?;
 
             Ok(token)
         }

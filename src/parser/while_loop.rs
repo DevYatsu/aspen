@@ -7,9 +7,9 @@ use super::{
 use crate::parser::{AspenParser, Token};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct While<'a> {
-    pub condition: Box<Expr<'a>>,
-    pub body: Box<Block<'a>>,
+pub struct While<'s> {
+    pub condition: Box<Expr<'s>>,
+    pub body: Box<Block<'s>>,
 }
 crate::impl_from_for!(While, Statement);
 

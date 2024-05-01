@@ -11,26 +11,26 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Func<'a> {
-    pub name: &'a str,
-    pub arguments: Container<Argument<'a>>,
-    pub body: Box<Block<'a>>,
+pub struct Func<'s> {
+    pub name: &'s str,
+    pub arguments: Container<Argument<'s>>,
+    pub body: Box<Block<'s>>,
 }
 
 crate::impl_from_for!(Func, Statement);
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Argument<'a> {
+pub struct Argument<'s> {
     pub is_spread: bool,
-    pub identifier: &'a str,
-    pub base_value: Option<Box<Expr<'a>>>,
+    pub identifier: &'s str,
+    pub base_value: Option<Box<Expr<'s>>>,
 }
 
-impl<'a> Func<'a> {
+impl<'s> Func<'s> {
     /// Parses a function declaration.
     ///
     /// **NOTE: We assume the function name is already consumed by the parser!**
-    pub fn parse<'s>(parser: &mut AspenParser<'s>, name: &'s str) -> AspenResult<Statement<'s>> {
+    pub fn parse(parser: &mut AspenParser<'s>, name: &'s str) -> AspenResult<Statement<'s>> {
         let arguments = Func::parse_declaration_args(parser)?;
         let body = Box::new(parse_block(parser, Some(Token::CloseBrace))?);
 
@@ -45,7 +45,7 @@ impl<'a> Func<'a> {
     /// Parses arguments of a function call.
     ///
     /// **NOTE: We assume '(' was already consumed!**
-    pub fn parse_call_args<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
+    pub fn parse_call_args(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
         let mut args = vec![];
         let mut awaits_arg = true;
 
@@ -87,7 +87,12 @@ impl<'a> Func<'a> {
                     }
                 }
                 Token::Comma if !awaits_arg => awaits_arg = true,
-                _ => return Err(AspenError::Expected("a close parenthesis ')'".to_owned())),
+                _ => {
+                    return Err(AspenError::expected(
+                        parser,
+                        "a close parenthesis ')'".to_owned(),
+                    ))
+                }
             };
         }
 
@@ -98,9 +103,9 @@ impl<'a> Func<'a> {
     ///
     /// **NOTE: We also parse the '{' which startes the block of the function**
     fn parse_declaration_args(
-        parser: &mut AspenParser<'a>,
-    ) -> AspenResult<Container<Argument<'a>>> {
-        let mut args: Container<Argument<'a>> = vec![];
+        parser: &mut AspenParser<'s>,
+    ) -> AspenResult<Container<Argument<'s>>> {
+        let mut args: Container<Argument<'s>> = vec![];
         let mut awaits_arg = true;
 
         loop {
@@ -117,7 +122,10 @@ impl<'a> Func<'a> {
 
                         match base_value {
                             Some(_) => {
-                                return Err(AspenError::Unknown("token ':' found".to_owned()))
+                                return Err(AspenError::unknown(
+                                    parser,
+                                    "token ':' found".to_owned(),
+                                ))
                             }
                             None => {
                                 let (expr, end_token) =
@@ -143,7 +151,8 @@ impl<'a> Func<'a> {
                     match next_token {
                         Token::Identifier(value) => args.push(Box::new((value, true).into())),
                         _ => {
-                            return Err(AspenError::Expected(
+                            return Err(AspenError::expected(
+                                parser,
                                 "an identifier following the '...'".to_owned(),
                             ))
                         }
@@ -153,7 +162,8 @@ impl<'a> Func<'a> {
                 }
                 Token::Comma if !awaits_arg => awaits_arg = true,
                 _ => {
-                    return Err(AspenError::Expected(
+                    return Err(AspenError::expected(
+                        parser,
                         "a valid function argument or '{'".to_owned(),
                     ))
                 }
@@ -164,8 +174,8 @@ impl<'a> Func<'a> {
     }
 }
 
-impl<'a> Argument<'a> {
-    pub fn new(identifier: &'a str, is_spread: bool) -> Self {
+impl<'s> Argument<'s> {
+    pub fn new(identifier: &'s str, is_spread: bool) -> Self {
         Self {
             is_spread,
             identifier,
@@ -174,13 +184,13 @@ impl<'a> Argument<'a> {
     }
 }
 
-impl<'a> From<(&'a str, bool)> for Argument<'a> {
-    fn from(value: (&'a str, bool)) -> Self {
+impl<'s> From<(&'s str, bool)> for Argument<'s> {
+    fn from(value: (&'s str, bool)) -> Self {
         Argument::new(value.0, value.1)
     }
 }
-impl<'a> From<&'a str> for Argument<'a> {
-    fn from(value: &'a str) -> Self {
+impl<'s> From<&'s str> for Argument<'s> {
+    fn from(value: &'s str) -> Self {
         Argument::new(value, false)
     }
 }

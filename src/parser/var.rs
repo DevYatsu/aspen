@@ -6,22 +6,22 @@ use super::{
 use crate::parser::{AspenParser, Token};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Var<'a> {
-    pub variables: Vec<&'a str>,
-    pub value: Box<Expr<'a>>,
+pub struct Var<'s> {
+    pub variables: Vec<&'s str>,
+    pub value: Box<Expr<'s>>,
 }
 
-impl<'a> Var<'a> {
+impl<'s> Var<'s> {
     /// Parses an variable declaration.
     ///
     /// **NOTE: We assume "let" is already consumed by the parser!**
-    pub fn parse(parser: &mut AspenParser<'a>) -> AspenResult<Statement<'a>> {
+    pub fn parse(parser: &mut AspenParser<'s>) -> AspenResult<Statement<'s>> {
         expect_space(parser)?;
 
         Self::parse_after_comma(parser)
     }
 
-    pub fn parse_after_comma(parser: &mut AspenParser<'a>) -> AspenResult<Statement<'a>> {
+    pub fn parse_after_comma(parser: &mut AspenParser<'s>) -> AspenResult<Statement<'s>> {
         let mut variables = vec![];
 
         match next_jump_multispace(parser)? {
@@ -29,7 +29,7 @@ impl<'a> Var<'a> {
             Token::OpenParen => {
                 match next_jump_multispace(parser)? {
                     Token::Identifier(name) => variables.push(name),
-                    _ => return Err(AspenError::Expected("an import value".to_owned())),
+                    _ => return Err(AspenError::expected(parser, "an identifier".to_owned())),
                 }
 
                 loop {
@@ -38,15 +38,20 @@ impl<'a> Var<'a> {
                             match next_jump_multispace(parser)? {
                                 Token::Identifier(name) => variables.push(name),
                                 Token::CloseBracket => break,
-                                _ => return Err(AspenError::Expected("an identifier".to_owned())),
+                                _ => {
+                                    return Err(AspenError::expected(
+                                        parser,
+                                        "an identifier".to_owned(),
+                                    ))
+                                }
                             };
                         }
                         Token::CloseParen => break,
-                        _ => return Err(AspenError::Expected("an identifier".to_owned())),
+                        _ => return Err(AspenError::expected(parser, "an identifier".to_owned())),
                     }
                 }
             }
-            _ => return Err(AspenError::Expected("an identifier".to_owned())),
+            _ => return Err(AspenError::expected(parser, "an identifier".to_owned())),
         };
 
         let value = Box::new(Expr::parse(parser)?);

@@ -1,5 +1,6 @@
 use crate::parser::operator::{AssignOperator, BinaryOperator};
 use logos::{Lexer, Logos};
+use rug::float::OrdFloat;
 pub use rug::{Complete, Float, Integer};
 use std::fmt::Display;
 
@@ -86,8 +87,8 @@ pub enum Token<'a> {
 
     #[regex(r"-?\d+(_?\d)*", |lex| Integer::parse(lex.slice()).unwrap(/* the number is valid */).complete(), priority = 5)]
     Int(Integer),
-    #[regex(r"-?\d+(_?\d)*(\.\d+)([eE][-+]?\d+)?", |lex| Float::with_val(25, Float::parse(lex.slice()).unwrap(/* the number is valid */)), priority = 4)]
-    Float(Float),
+    #[regex(r"-?\d+(_?\d)*(\.\d+)([eE][-+]?\d+)?", |lex| OrdFloat::from(Float::with_val(18, Float::parse(lex.slice()).unwrap(/* the number is valid */))), priority = 4)]
+    Float(OrdFloat),
 
     #[regex("[a-zA-Z_][a-zA-Z0-9_]*!", |lex| {let raw=lex.slice();&raw[..raw.len()-1]})]
     ObjectKey(&'a str),
