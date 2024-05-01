@@ -4,6 +4,7 @@ use crate::lexer::{Integer, Token};
 
 use super::{
     error::{AspenError, AspenResult},
+    operator::AssignOperator,
     utils::TokenOption,
     AspenParser, Expr,
 };
@@ -27,6 +28,13 @@ pub fn parse_value<'s>(parser: &mut AspenParser<'s>, token: Token<'s>) -> AspenR
         Token::Int(i) => i.into(),
         Token::Float(f) => f.into(),
         Token::Nil => Value::Nil,
+        Token::AssignOperator(AssignOperator::Equal) => {
+            return Err(AspenError::unknown(
+                parser,
+                "token '=', only supported to modify a variable".to_owned(),
+            ))
+        }
+
         _ => return Err(AspenError::expected(parser, "a valid <expr>".to_owned())),
     };
 

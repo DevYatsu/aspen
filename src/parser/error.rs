@@ -20,6 +20,7 @@ pub enum AspenError {
         start: usize,
         end: usize,
         length: usize,
+        note: String,
     },
 
     ExpectedSpace {
@@ -79,6 +80,7 @@ impl<'a> AspenError {
     }
     pub fn from_evaluate_error(
         error: EvaluateError,
+        note: String,
         start: usize,
         end: usize,
         length: usize,
@@ -88,6 +90,7 @@ impl<'a> AspenError {
             start,
             end,
             length,
+            note,
         }
     }
 

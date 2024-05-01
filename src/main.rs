@@ -1,9 +1,10 @@
-use crate::{lexer::Token, parser::parse_aspen};
+use crate::{errors::build_error, lexer::Token, parser::parse_aspen};
 use dialoguer::{theme::ColorfulTheme, Select};
 use logos::Logos;
 use parser::error::AspenError;
 use std::{env::args, fs, time::Instant};
 
+mod errors;
 mod evaluate;
 mod lexer;
 mod parser;
@@ -32,7 +33,8 @@ fn main() -> Result<(), AspenError> {
         })
         .unwrap_or((1, false));
 
-    let content = fs::read_to_string(format!("./aspen/{}", names[choice]))?.repeat(n);
+    let file_name = format!("./aspen/{}", names[choice]);
+    let content = fs::read_to_string(&file_name)?.repeat(n);
     let mut parser: parser::AspenParser<'_> = Token::lexer(&content).into();
 
     match see_tokens {
@@ -44,7 +46,9 @@ fn main() -> Result<(), AspenError> {
         }
         false => {
             let start = Instant::now();
-            parse_aspen(&mut parser)?;
+            if let Err(e) = parse_aspen(&mut parser) {
+                build_error(parser.lexer.source(), e, &file_name)
+            };
 
             println!("stmts: {:?}", parser.statements());
             println!("comments: {:?}", parser.comments());

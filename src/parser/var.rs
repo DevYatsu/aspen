@@ -51,7 +51,12 @@ impl<'s> Var<'s> {
                     }
                 }
             }
-            _ => return Err(AspenError::expected(parser, "an identifier".to_owned())),
+            _ => {
+                return Err(AspenError::unknown(
+                    parser,
+                    format!("token '{}'", parser.lexer.slice()),
+                ))
+            }
         };
 
         let value = Box::new(Expr::parse(parser)?);
