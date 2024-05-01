@@ -3,7 +3,7 @@
         num1 += num
     }
 
-    return [(num * 2 / 2), 2, 3]
+    >> [(num * 2 / 2), 2, 3]
 }
 
 
@@ -15,7 +15,7 @@ let x   2 + add(1,2,3,4,5,6,7,8,9)
 x = add(1, x)
 
 @operation num1, num2 {
-    num1 * num2 / 1 + 2 * 2 * add(1,2)
+    >> num1 * num2 / 1 + 2 * 2 * add(1,2)
 }
 
 @multiply result: 1, ...args {
@@ -23,7 +23,7 @@ x = add(1, x)
         result = result * val
     }
 
-    result
+    >> result
 }
 
 @my_func arg1, ...others {

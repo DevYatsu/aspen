@@ -1,9 +1,9 @@
-use hashbrown::HashMap;
-use rug::{float::OrdFloat, Integer};
-
-use crate::parser::{func::Func, value::Value, var::Var, Container, Expr, Statement};
-
 use self::{error::EvaluateError, func::AspenFn, types::AspenType, value::AspenValue};
+use crate::parser::{
+    func::Func, operator::AssignOperator, return_stmt::Return, value::Value, var::Var, Container,
+    Expr, Statement,
+};
+use hashbrown::HashMap;
 
 pub mod error;
 pub mod func;
@@ -17,31 +17,62 @@ pub struct AspenTable<'a> {
 
 pub type EvaluateResult<T> = Result<T, EvaluateError>;
 
-pub fn evaluate(stmts: Container<Statement<'_>>) -> EvaluateResult<()> {
-    let mut table = AspenTable::new();
-
-    for stmt in stmts.into_iter() {
-        match *stmt {
-            Statement::Func(f) => {
-                table.insert_fn(f)?;
-            }
-            Statement::Var(var) => {
-                table.insert_var(var)?;
-            }
-            _ => (),
-        }
-    }
-
-    println!("{:?}", table);
-
-    Ok(())
-}
-
 impl<'a> AspenTable<'a> {
     pub fn new() -> Self {
         AspenTable {
             values: HashMap::new(),
         }
+    }
+
+    pub fn evaluate_block(
+        &mut self,
+        stmts: Container<Statement<'a>>,
+    ) -> EvaluateResult<AspenValue<'a>> {
+        for stmt in stmts.into_iter() {
+            match *stmt {
+                Statement::Func(f) => {
+                    self.insert_fn(f)?;
+                }
+                Statement::Var(var) => {
+                    self.insert_var(var)?;
+                }
+                Statement::Return(Return(value)) => return Ok(self.evaluate_expr(*value)?),
+                Statement::Expr(expr) => match *expr {
+                    Expr::Assign {
+                        target,
+                        operator,
+                        value,
+                        // no need to pay attention to it cause we are at the end of the ctx an assignment is useless
+                    } => {
+                        let name = match *target {
+                            Expr::Id(name) => name,
+                            Expr::ObjIndexing { indexed, indexer } => {
+                                todo!()
+                            }
+                            expr => {
+                                return Err(EvaluateError::Custom(format!(
+                                    "Value can only be assigned to variable, not value '{}'",
+                                    expr
+                                )));
+                            }
+                        };
+
+                        match operator {
+                            AssignOperator::Equal => {
+                                self.update_value(name, self.evaluate_expr(*value)?)?;
+                            }
+                            _ => todo!(),
+                        };
+                    }
+                    expr => return Ok(self.evaluate_expr(expr)?),
+                },
+                _ => todo!(),
+            }
+        }
+
+        println!("{:?}", self);
+
+        Ok(AspenValue::Nil)
     }
 
     pub fn get_value(&self, name: &'a str) -> EvaluateResult<&AspenValue<'a>> {
@@ -159,6 +190,29 @@ impl<'a> AspenTable<'a> {
             }
             _ => todo!(),
         }
+
+        Ok(())
+    }
+
+    pub fn update_value(&mut self, name: &'a str, value: AspenValue<'a>) -> EvaluateResult<()> {
+        let previous_value = self.values.insert(name, value);
+
+        if previous_value.is_none() {
+            return Err(EvaluateError::Custom(format!(
+                "Cannot assign value to undefined variable '{}'",
+                name
+            )));
+        }
+
+        match previous_value.unwrap() {
+            AspenValue::Func(_) => {
+                return Err(EvaluateError::Custom(format!(
+                    "Cannot assign value to function '{}'",
+                    name
+                )));
+            }
+            _ => (),
+        };
 
         Ok(())
     }

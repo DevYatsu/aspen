@@ -6,6 +6,8 @@ pub enum EvaluateError {
     UndefinedIdentifier(String),
     IdentifierAlreadyUsed(String),
 
+    Custom(String),
+
     InvalidType {
         expected: AspenType,
         found: AspenType,
@@ -28,6 +30,7 @@ impl<'a> Error for EvaluateError {}
 impl fmt::Display for EvaluateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            EvaluateError::Custom(s) => write!(f, "{}", s),
             EvaluateError::IdentifierAlreadyUsed(name) => {
                 write!(f, "Identifier already in use: '{}'", name)
             }

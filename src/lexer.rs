@@ -49,7 +49,7 @@ pub enum Token<'a> {
 
     #[regex(r"\$import|\$imp|\$")]
     Import,
-    #[token("return")]
+    #[regex(r"return|>>")]
     Return,
     #[token("let")]
     Let,

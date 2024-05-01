@@ -1,6 +1,6 @@
 use crate::{
     evaluate::{error::EvaluateError, AspenTable},
-    parser::{error::AspenResult, func::Argument, utils::Block},
+    parser::{func::Argument, utils::Block},
 };
 
 use super::{AspenValue, EvaluateResult};
@@ -34,7 +34,8 @@ impl<'a> AspenFn<'a> {
             });
         }
 
-        let ctx = self.init_ctx(args, has_spread_arg);
+        let mut ctx = self.init_ctx(args, has_spread_arg)?;
+        let result = ctx.evaluate_block(self.body.statements())?;
 
         todo!()
     }
@@ -43,22 +44,22 @@ impl<'a> AspenFn<'a> {
         &self,
         args: Vec<AspenValue<'a>>,
         has_spread_arg: bool,
-    ) -> AspenResult<AspenTable<'a>> {
+    ) -> EvaluateResult<AspenTable<'a>> {
         let mut fn_ctx = AspenTable::new();
 
         if has_spread_arg {
             for (i, arg) in self.args.iter().enumerate() {
                 if !arg.is_spread {
-                    fn_ctx.insert_value(arg.identifier, args[i].clone());
+                    fn_ctx.insert_value(arg.identifier, args[i].clone())?;
                 } else {
                     let spread_args = args.iter().skip(i - 1).cloned().collect::<Vec<_>>();
-                    fn_ctx.insert_value(arg.identifier, AspenValue::Array(spread_args));
+                    fn_ctx.insert_value(arg.identifier, AspenValue::Array(spread_args))?;
                     break;
                 }
             }
         } else {
             for (arg, value) in self.args.iter().zip(args.into_iter()) {
-                fn_ctx.insert_value(arg.identifier, value);
+                fn_ctx.insert_value(arg.identifier, value)?;
             }
         }
 

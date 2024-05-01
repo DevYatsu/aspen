@@ -150,10 +150,6 @@ pub fn parse_block<'s>(
                             let stmt = Var::parse_after_comma(parser)?;
                             statements.push(Box::new(stmt));
                         }
-                        Statement::Return(Return(vec)) => {
-                            let stmt = Return::parse_after_comma(parser)?;
-                            vec.push(Box::new(stmt))
-                        }
                         _ => {
                             return Err(error::AspenError::unknown(
                                 parser,
@@ -310,10 +306,9 @@ pub fn parse_block<'s>(
                             let expr = Expr::parse(parser)?;
                             Expr::modify_into_binary_op(parser, base_expr, expr, bop)?;
                         }
-                        Statement::Return(Return(vec)) => {
-                            let last = vec.last_mut().unwrap();
+                        Statement::Return(Return(returned_expr)) => {
                             let expr = Expr::parse(parser)?;
-                            Expr::modify_into_binary_op(parser, last, expr, bop)?;
+                            Expr::modify_into_binary_op(parser, returned_expr, expr, bop)?;
                         }
                         _ => {
                             return Err(error::AspenError::unknown(
@@ -344,8 +339,8 @@ pub fn parse_block<'s>(
                             Expr::modify_into_fn_call(parser, value)?;
                             continue;
                         }
-                        Statement::Return(Return(vars)) => {
-                            Expr::modify_into_fn_call(parser, vars.last_mut().unwrap())?;
+                        Statement::Return(Return(returned_expr)) => {
+                            Expr::modify_into_fn_call(parser, returned_expr)?;
                             continue;
                         }
                         _ => (),
@@ -390,8 +385,8 @@ pub fn parse_block<'s>(
                         Statement::Var(Var { value, .. }) => {
                             Expr::modify_into_obj_indexing(parser, value)?;
                         }
-                        Statement::Return(Return(vars)) => {
-                            Expr::modify_into_obj_indexing(parser, vars.last_mut().unwrap())?;
+                        Statement::Return(Return(returned_expr)) => {
+                            Expr::modify_into_obj_indexing(parser, returned_expr)?;
                         }
                         _ => return Err(AspenError::unknown(parser, "token '[' found".to_owned())),
                     };
@@ -410,11 +405,8 @@ pub fn parse_block<'s>(
                         Statement::Var(Var { value, .. }) => {
                             Expr::modify_into_string_concatenation(parser, value)?;
                         }
-                        Statement::Return(Return(vars)) => {
-                            Expr::modify_into_string_concatenation(
-                                parser,
-                                vars.last_mut().unwrap(),
-                            )?;
+                        Statement::Return(Return(returned_expr)) => {
+                            Expr::modify_into_string_concatenation(parser, returned_expr)?;
                         }
                         _ => {
                             return Err(AspenError::unknown(parser, "token '..' found".to_owned()))
@@ -439,8 +431,8 @@ pub fn parse_block<'s>(
                         Statement::Var(Var { value, .. }) => {
                             Expr::modify_into_array_indexing(parser, value)?;
                         }
-                        Statement::Return(Return(vars)) => {
-                            Expr::modify_into_array_indexing(parser, vars.last_mut().unwrap())?;
+                        Statement::Return(Return(returned_expr)) => {
+                            Expr::modify_into_array_indexing(parser, returned_expr)?;
                         }
                         _ => return Err(AspenError::unknown(parser, "token '[' found".to_owned())),
                     };

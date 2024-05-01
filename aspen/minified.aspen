@@ -1,1 +1,1 @@
-let math $import("math"), sys $import("sys");@multiply a,b{a*b}let array [23,2];let a 23_333 * 8 + sum(1:100:2) * PI, b sqrt(16.0) + multiply(a,PI), (_, two) array;@print_two{print(two)}print_two();@export{{val! a + 2,other!{}}}(print)("str")
+let math $import("math"), sys $import("sys");@multiply a,b{>>a*b}let array [23,2];let a 23_333 * 8 + sum(1:100:2) * PI, b sqrt(16.0) + multiply(a,PI), (_, two) array;@print_two{print(two)}print_two();@export{{val! a + 2,other!{}}}(print)("str")
