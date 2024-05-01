@@ -892,3 +892,73 @@ impl<'a> From<&'a str> for Expr<'a> {
         Expr::Id(val)
     }
 }
+
+use std::fmt;
+
+impl<'a> fmt::Display for Expr<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Expr::Value(value) => write!(f, "{:?}", value),
+            Expr::Import(s) => write!(f, "$import(\"{}\")", s),
+            Expr::Array(exprs) => {
+                write!(f, "[")?;
+                for (i, expr) in exprs.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", expr)?;
+                }
+                write!(f, "]")
+            }
+            Expr::Object(obj) => {
+                write!(f, "{{")?;
+                for (i, (key, expr)) in obj.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}! {}", key, expr)?;
+                }
+                write!(f, "}}")
+            }
+            Expr::Id(s) => write!(f, "{}", s),
+            Expr::SpeadId(s) => write!(f, "...{}", s),
+            Expr::Parenthesized(expr) => write!(f, "({})", expr),
+            Expr::Assign {
+                target,
+                operator,
+                value,
+            } => {
+                write!(f, "{} {} {}", target, operator, value)
+            }
+            Expr::Binary { lhs, operator, rhs } => {
+                write!(f, "{} {} {}", lhs, operator, rhs)
+            }
+            Expr::FuncCall { callee, args } => {
+                write!(f, "{}(", callee)?;
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", arg)?;
+                }
+                write!(f, ")")
+            }
+            Expr::Range { start, end, step } => {
+                write!(f, "{}..{}", start, end)?;
+                if let Some(step) = step {
+                    write!(f, "..{}", step)?;
+                }
+                Ok(())
+            }
+            Expr::ArrayIndexing { indexed, indexer } => {
+                write!(f, "{}[{}]", indexed, indexer)
+            }
+            Expr::ObjIndexing { indexed, indexer } => {
+                write!(f, "{}.{}", indexed, indexer)
+            }
+            Expr::StringConcatenation { left, right } => {
+                write!(f, "{}..{}", left, right)
+            }
+        }
+    }
+}

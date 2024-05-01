@@ -5,15 +5,12 @@ use super::{
     utils::{next_jump_multispace, next_token, Block},
     Expr, Statement,
 };
-use crate::{
-    lexer::Token,
-    parser::{AspenParser, Container},
-};
+use crate::{lexer::Token, parser::AspenParser};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Func<'s> {
     pub name: &'s str,
-    pub arguments: Container<Argument<'s>>,
+    pub arguments: Vec<Argument<'s>>,
     pub body: Box<Block<'s>>,
 }
 
@@ -102,10 +99,9 @@ impl<'s> Func<'s> {
     /// Parses arguments of a function (when declaring it).
     ///
     /// **NOTE: We also parse the '{' which startes the block of the function**
-    fn parse_declaration_args(
-        parser: &mut AspenParser<'s>,
-    ) -> AspenResult<Container<Argument<'s>>> {
-        let mut args: Container<Argument<'s>> = vec![];
+    fn parse_declaration_args(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Argument<'s>>> {
+        let mut args = Vec::new();
+        let mut spread_count: u8 = 0;
         let mut awaits_arg = true;
 
         loop {
@@ -118,7 +114,7 @@ impl<'s> Func<'s> {
                     if let Some(val) = args.last_mut() {
                         let Argument {
                             ref mut base_value, ..
-                        } = val.as_mut();
+                        } = val;
 
                         match base_value {
                             Some(_) => {
@@ -142,14 +138,49 @@ impl<'s> Func<'s> {
                     }
                 }
                 Token::Identifier(value) if awaits_arg => {
-                    args.push(Box::new(value.into()));
+                    if spread_count > 0 {
+                        return Err(AspenError::unknown(
+                            parser,
+                            format!("spread argument, a spread argument can only be defined at the end of the arguments list"),
+                        ));
+                    }
+
+                    if args.iter().any(|arg| arg.identifier == value) {
+                        return Err(AspenError::unknown(
+                            parser,
+                            format!(
+                                "argument '{}', function already possesses such an identifier",
+                                value
+                            ),
+                        ));
+                    }
+
+                    args.push(value.into());
                     awaits_arg = false
                 }
                 Token::SpreadOperator if awaits_arg => {
                     let next_token = next_token(parser)?;
 
+                    if spread_count > 0 {
+                        return Err(AspenError::unknown(
+                            parser,
+                            format!("spread argument, a function can only have 1 spread argument"),
+                        ));
+                    }
+
                     match next_token {
-                        Token::Identifier(value) => args.push(Box::new((value, true).into())),
+                        Token::Identifier(value) => {
+                            if args.iter().any(|arg| arg.identifier == value) {
+                                return Err(AspenError::unknown(
+                                    parser,
+                                    format!(
+                                    "argument '{}', function already possesses such an identifier",
+                                    value
+                                ),
+                                ));
+                            }
+                            args.push((value, true).into())
+                        }
                         _ => {
                             return Err(AspenError::expected(
                                 parser,
@@ -158,6 +189,7 @@ impl<'s> Func<'s> {
                         }
                     };
 
+                    spread_count += 1;
                     awaits_arg = false
                 }
                 Token::Comma if !awaits_arg => awaits_arg = true,

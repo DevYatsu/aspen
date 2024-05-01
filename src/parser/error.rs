@@ -49,7 +49,7 @@ pub enum AspenError {
     Eof,
 }
 
-impl Error for AspenError {}
+impl<'a> Error for AspenError {}
 
 impl fmt::Display for AspenError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -68,8 +68,8 @@ impl fmt::Display for AspenError {
     }
 }
 
-impl<'a> AspenError {
-    pub fn from_lexing_error(parser: &mut AspenParser<'a>, error: LexingError) -> Self {
+impl AspenError {
+    pub fn from_lexing_error(parser: &mut AspenParser, error: LexingError) -> Self {
         let span = parser.lexer.span();
         Self::Lexing {
             error,
@@ -94,7 +94,7 @@ impl<'a> AspenError {
         }
     }
 
-    pub fn expected(parser: &mut AspenParser<'a>, error: String) -> Self {
+    pub fn expected(parser: &mut AspenParser, error: String) -> Self {
         let span = parser.lexer.span();
         Self::Expected {
             error,
@@ -104,7 +104,7 @@ impl<'a> AspenError {
         }
     }
 
-    pub fn expected_space(parser: &mut AspenParser<'a>) -> Self {
+    pub fn expected_space(parser: &mut AspenParser) -> Self {
         let span = parser.lexer.span();
         Self::ExpectedSpace {
             start: span.start,
@@ -113,7 +113,7 @@ impl<'a> AspenError {
         }
     }
 
-    pub fn expected_newline(parser: &mut AspenParser<'a>) -> Self {
+    pub fn expected_newline(parser: &mut AspenParser) -> Self {
         let span = parser.lexer.span();
         Self::ExpectedNewline {
             start: span.start,
@@ -122,7 +122,7 @@ impl<'a> AspenError {
         }
     }
 
-    pub fn unknown(parser: &mut AspenParser<'a>, error: String) -> Self {
+    pub fn unknown(parser: &mut AspenParser, error: String) -> Self {
         let span = parser.lexer.span();
         Self::Unknown {
             error,
@@ -131,7 +131,7 @@ impl<'a> AspenError {
             length: parser.lexer.slice().len(),
         }
     }
-    pub fn eof(parser: &mut AspenParser<'a>) -> Self {
+    pub fn eof(parser: &mut AspenParser) -> Self {
         Self::Eof
     }
 }

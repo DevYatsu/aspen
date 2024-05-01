@@ -1,41 +1,18 @@
 use hashbrown::HashMap;
 use rug::{float::OrdFloat, Integer};
 
-use crate::parser::{
-    func::{Argument, Func},
-    utils::Block,
-    value::Value,
-    var::Var,
-    Container, Expr, Statement,
-};
+use crate::parser::{func::Func, value::Value, var::Var, Container, Expr, Statement};
 
-use self::error::EvaluateError;
+use self::{error::EvaluateError, func::AspenFn, types::AspenType, value::AspenValue};
 
 pub mod error;
+pub mod func;
+pub mod types;
+mod value;
 
 #[derive(Debug, Clone)]
 pub struct AspenTable<'a> {
-    functions: HashMap<&'a str, AspenFn<'a>>,
-    vars: HashMap<&'a str, AspenValue<'a>>,
-}
-
-#[derive(Debug, Clone)]
-pub struct AspenFn<'a> {
-    args: Vec<Box<Argument<'a>>>,
-    body: Box<Block<'a>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AspenValue<'a> {
-    Nil,
-    Str(String),
-    Bool(bool),
-
-    Int(Integer),
-    Float(OrdFloat),
-
-    Array(Container<AspenValue<'a>>),
-    Object(HashMap<&'a str, AspenValue<'a>>),
+    values: HashMap<&'a str, AspenValue<'a>>,
 }
 
 pub type EvaluateResult<T> = Result<T, EvaluateError>;
@@ -63,26 +40,80 @@ pub fn evaluate(stmts: Container<Statement<'_>>) -> EvaluateResult<()> {
 impl<'a> AspenTable<'a> {
     pub fn new() -> Self {
         AspenTable {
-            functions: HashMap::new(),
-            vars: HashMap::new(),
+            values: HashMap::new(),
         }
     }
 
-    pub fn get_var(&self, name: &'a str) -> EvaluateResult<&AspenValue<'a>> {
-        let opt_value = self.vars.get(name);
+    pub fn get_value(&self, name: &'a str) -> EvaluateResult<&AspenValue<'a>> {
+        let opt_value = self.values.get(name);
 
         match opt_value {
             Some(value) => Ok(value),
-            None => Err(EvaluateError::UnknownVar(name.to_owned())),
+            None => Err(EvaluateError::UndefinedIdentifier(name.to_owned())),
         }
     }
 
-    pub fn interpret_value(&self, expr: Expr<'a>) -> EvaluateResult<AspenValue<'a>> {
+    pub fn is_identifier_used(&self, ident: &'a str) -> bool {
+        self.get_value(ident).is_ok()
+    }
+
+    pub fn evaluate_expr(&self, expr: Expr<'a>) -> EvaluateResult<AspenValue<'a>> {
         match expr {
             Expr::Value(val) => Ok(val.into()),
             Expr::Id(name) => {
-                let value = self.get_var(name)?.to_owned();
+                let value = self.get_value(name)?.to_owned();
                 Ok(value)
+            }
+            Expr::Import(name) => {
+                todo!()
+            }
+            Expr::FuncCall { callee, args } => {
+                let func_name = match self.evaluate_expr(*callee)? {
+                    AspenValue::Str(s) => s,
+                    x => return Err(EvaluateError::OnlyFuncsCanBeCalled(x.to_string())),
+                };
+
+                let func = self.get_value(&func_name)?;
+
+                match func {
+                    AspenValue::Func(f) => {}
+                    _ => return Err(EvaluateError::IdentifierIsNotValidFn(func_name)),
+                }
+                todo!()
+            }
+            Expr::StringConcatenation { left, right } => {
+                let left = self.evaluate_expr(*left)?;
+                let right = self.evaluate_expr(*right)?;
+
+                match (left, right) {
+                    (AspenValue::Str(l), AspenValue::Str(r)) => Ok(AspenValue::Str(l + &r)),
+
+                    (AspenValue::Str(_), x) => {
+                        return Err(EvaluateError::InvalidType {
+                            expected: AspenType::String,
+                            found: x.into(),
+                        })
+                    }
+                    (x, _) => {
+                        return Err(EvaluateError::InvalidType {
+                            expected: AspenType::String,
+                            found: x.into(),
+                        })
+                    }
+                }
+            }
+            Expr::Parenthesized(expr) => self.evaluate_expr(*expr),
+            Expr::Range { start, end, step } => {
+                let step = match step {
+                    None => None,
+                    Some(expr) => Some(self.evaluate_expr(*expr).map(Box::new)?),
+                };
+
+                Ok(AspenValue::Range {
+                    start: Box::new(self.evaluate_expr(*start)?),
+                    end: Box::new(self.evaluate_expr(*end)?),
+                    step,
+                })
             }
             _ => todo!(),
         }
@@ -95,12 +126,17 @@ impl<'a> AspenTable<'a> {
             body,
         } = f;
 
-        self.functions.insert(
+        if self.is_identifier_used(name) {
+            return Err(EvaluateError::IdentifierAlreadyUsed(name.to_owned()));
+        }
+
+        self.values.insert(
             name,
-            AspenFn {
+            AspenValue::Func(AspenFn {
                 args: arguments,
                 body,
-            },
+                name,
+            }),
         );
 
         Ok(())
@@ -109,14 +145,30 @@ impl<'a> AspenTable<'a> {
     pub fn insert_var(&mut self, v: Var<'a>) -> EvaluateResult<()> {
         let Var { variables, value } = v;
 
-        let true_value = self.interpret_value(*value)?;
+        for name in variables.iter() {
+            if self.is_identifier_used(name) {
+                return Err(EvaluateError::IdentifierAlreadyUsed(name.to_string()));
+            }
+        }
+
+        let true_value = self.evaluate_expr(*value)?;
 
         match variables.len() {
             1 => {
-                self.vars.insert(variables[0], true_value);
+                self.insert_value(variables[0], true_value);
             }
             _ => todo!(),
         }
+
+        Ok(())
+    }
+
+    pub fn insert_value(&mut self, name: &'a str, value: AspenValue<'a>) -> EvaluateResult<()> {
+        if self.is_identifier_used(name) {
+            return Err(EvaluateError::IdentifierAlreadyUsed(name.to_string()));
+        }
+
+        self.values.insert(name, value);
 
         Ok(())
     }

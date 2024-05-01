@@ -1,7 +1,7 @@
 use crate::{errors::build_error, lexer::Token, parser::parse_aspen};
 use dialoguer::{theme::ColorfulTheme, Select};
 use logos::Logos;
-use parser::error::AspenError;
+use parser::error::AspenResult;
 use std::{env::args, fs, time::Instant};
 
 mod errors;
@@ -9,7 +9,7 @@ mod evaluate;
 mod lexer;
 mod parser;
 
-fn main() -> Result<(), AspenError> {
+fn main() -> AspenResult<()> {
     let names: Vec<_> = fs::read_dir("./aspen/")
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
@@ -50,12 +50,12 @@ fn main() -> Result<(), AspenError> {
                 build_error(parser.lexer.source(), e, &file_name)
             };
 
-            println!("stmts: {:?}", parser.statements());
-            println!("comments: {:?}", parser.comments());
+            // println!("stmts: {:?}", parser.statements());
+            // println!("comments: {:?}", parser.comments());
             println!("Content length: {}", content.len());
             println!("Lexing+Parsing took {} ms!", start.elapsed().as_millis());
 
-            let start = Instant::now();
+            // let start = Instant::now();
             // evaluate(parser.statements())?;
             // println!("Executing took {} ms!", start.elapsed().as_millis());
         }

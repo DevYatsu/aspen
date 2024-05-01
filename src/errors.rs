@@ -1,10 +1,9 @@
-use ariadne::{Cache, Color, Label, Report, ReportKind, Source};
+use ariadne::{Color, Label, Report, ReportKind, Source};
 
 // To see about ParsingErrors:
 use super::parser::error::AspenError;
 
 // To see about evaluation errors:
-use super::evaluate::error::EvaluateError;
 
 pub fn build_error(source: &str, err: AspenError, file_name: &str) {
     let err_string = err.to_string();

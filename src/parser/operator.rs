@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash)]
 pub enum AssignOperator {
     Plus,
     Sub,
@@ -10,7 +10,7 @@ pub enum AssignOperator {
     Equal,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash)]
 pub enum BinaryOperator {
     Plus,
     Sub,
