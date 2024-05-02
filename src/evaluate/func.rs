@@ -37,7 +37,7 @@ impl<'a> AspenFn<'a> {
         let mut ctx = self.init_ctx(args, has_spread_arg)?;
         let result = ctx.evaluate_block(self.body.statements())?;
 
-        todo!()
+        Ok(result)
     }
 
     fn init_ctx(
@@ -52,7 +52,7 @@ impl<'a> AspenFn<'a> {
                 if !arg.is_spread {
                     fn_ctx.insert_value(arg.identifier, args[i].clone())?;
                 } else {
-                    let spread_args = args.iter().skip(i - 1).cloned().collect::<Vec<_>>();
+                    let spread_args = args.iter().skip(i).cloned().collect::<Vec<_>>();
                     fn_ctx.insert_value(arg.identifier, AspenValue::Array(spread_args))?;
                     break;
                 }

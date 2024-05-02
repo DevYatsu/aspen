@@ -1,4 +1,4 @@
-use crate::{errors::build_error, lexer::Token, parser::parse_aspen};
+use crate::{errors::build_error, evaluate::AspenTable, lexer::Token, parser::parse_aspen};
 use dialoguer::{theme::ColorfulTheme, Select};
 use logos::Logos;
 use parser::error::AspenResult;
@@ -55,9 +55,12 @@ fn main() -> AspenResult<()> {
             println!("Content length: {}", content.len());
             println!("Lexing+Parsing took {} ms!", start.elapsed().as_millis());
 
-            // let start = Instant::now();
-            // evaluate(parser.statements())?;
-            // println!("Executing took {} ms!", start.elapsed().as_millis());
+            let start = Instant::now();
+            let mut table = AspenTable::global();
+            if let Err(e) = table.evaluate_block(parser.statements()) {
+                println!("{}", e)
+            };
+            println!("Executing took {} ms!", start.elapsed().as_millis());
         }
     };
 

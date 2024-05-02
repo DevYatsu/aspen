@@ -1,13 +1,20 @@
-use self::{error::EvaluateError, func::AspenFn, types::AspenType, value::AspenValue};
+use self::{
+    error::EvaluateError, func::AspenFn, globals::set_up_globals, types::AspenType,
+    value::AspenValue,
+};
 use crate::parser::{
     func::Func, operator::AssignOperator, return_stmt::Return, value::Value, var::Var, Container,
     Expr, Statement,
 };
 use hashbrown::HashMap;
+use rug::Integer;
 
 pub mod error;
 pub mod func;
+mod globals;
+mod import;
 pub mod types;
+mod utils;
 mod value;
 
 #[derive(Debug, Clone)]
@@ -22,6 +29,12 @@ impl<'a> AspenTable<'a> {
         AspenTable {
             values: HashMap::new(),
         }
+    }
+
+    pub fn global() -> Self {
+        let mut values = HashMap::new();
+        set_up_globals(&mut values);
+        Self { values }
     }
 
     pub fn evaluate_block(
@@ -64,7 +77,9 @@ impl<'a> AspenTable<'a> {
                             _ => todo!(),
                         };
                     }
-                    expr => return Ok(self.evaluate_expr(expr)?),
+                    expr => {
+                        self.evaluate_expr(expr)?;
+                    }
                 },
                 _ => todo!(),
             }
@@ -75,7 +90,7 @@ impl<'a> AspenTable<'a> {
         Ok(AspenValue::Nil)
     }
 
-    pub fn get_value(&self, name: &'a str) -> EvaluateResult<&AspenValue<'a>> {
+    pub fn get_ref_value(&self, name: &'a str) -> EvaluateResult<&AspenValue<'a>> {
         let opt_value = self.values.get(name);
 
         match opt_value {
@@ -84,33 +99,52 @@ impl<'a> AspenTable<'a> {
         }
     }
 
+    pub fn get_value(&self, name: String) -> EvaluateResult<AspenValue<'a>> {
+        let opt_value = self.values.get(name.as_str());
+
+        match opt_value {
+            Some(value) => Ok(value.clone()),
+            None => Err(EvaluateError::UndefinedIdentifier(name.to_owned())),
+        }
+    }
+
     pub fn is_identifier_used(&self, ident: &'a str) -> bool {
-        self.get_value(ident).is_ok()
+        self.get_ref_value(ident).is_ok()
     }
 
     pub fn evaluate_expr(&self, expr: Expr<'a>) -> EvaluateResult<AspenValue<'a>> {
         match expr {
             Expr::Value(val) => Ok(val.into()),
             Expr::Id(name) => {
-                let value = self.get_value(name)?.to_owned();
+                let value = self.get_ref_value(name)?.to_owned();
                 Ok(value)
             }
             Expr::Import(name) => {
                 todo!()
             }
             Expr::FuncCall { callee, args } => {
-                let func_name = match self.evaluate_expr(*callee)? {
-                    AspenValue::Str(s) => s,
+                let func_name = match *callee {
+                    Expr::Id(id) => id,
+                    Expr::ObjIndexing { indexed, indexer } => {
+                        todo!()
+                    }
                     x => return Err(EvaluateError::OnlyFuncsCanBeCalled(x.to_string())),
                 };
 
-                let func = self.get_value(&func_name)?;
+                let func = self.get_value(func_name.to_owned())?;
+
+                let args_result: Result<Vec<_>, _> =
+                    args.into_iter().map(|e| self.evaluate_expr(*e)).collect();
+                let args = args_result?;
 
                 match func {
-                    AspenValue::Func(f) => {}
-                    _ => return Err(EvaluateError::IdentifierIsNotValidFn(func_name)),
+                    AspenValue::Func(f) => return Ok(f.call(args)?),
+                    AspenValue::RustBindFn { code, name } => {
+                        let r = code(args)?;
+                        return Ok(r);
+                    }
+                    _ => return Err(EvaluateError::IdentifierIsNotValidFn(func_name.to_owned())),
                 }
-                todo!()
             }
             Expr::StringConcatenation { left, right } => {
                 let left = self.evaluate_expr(*left)?;
@@ -145,6 +179,57 @@ impl<'a> AspenTable<'a> {
                     end: Box::new(self.evaluate_expr(*end)?),
                     step,
                 })
+            }
+            Expr::Array(exprs) => {
+                let mut args = Vec::with_capacity(exprs.len());
+
+                for expr in exprs.into_iter() {
+                    match *expr {
+                        Expr::SpeadId(id) => match self.get_value(id.to_owned())? {
+                            AspenValue::Array(vals) => args.extend(vals),
+                            AspenValue::Range { start, end, step } => match (*start, *end) {
+                                (AspenValue::Int(i), AspenValue::Int(i2)) => {
+                                    let vals: Vec<_> = (i.to_i128().unwrap()
+                                        ..=i2.to_i128().unwrap())
+                                        .map(|i| AspenValue::Int(Integer::from(i)))
+                                        .collect();
+                                    args.extend(vals)
+                                }
+                                (AspenValue::Str(s), AspenValue::Str(s2)) => {
+                                    if s.len() == 1 && s2.len() == 1 {
+                                        let vals: Vec<_> = (s.chars().next().unwrap()
+                                            ..=s2.chars().next().unwrap())
+                                            .map(|s| AspenValue::Str(s.to_string()))
+                                            .collect();
+
+                                        args.extend(vals)
+                                    } else {
+                                        return Err(EvaluateError::Custom(format!(
+                                            "A range can only be generated from two numbers or two characters, \"{}\" and \"{}\" must be one character long",
+                                            s, s2
+                                        )));
+                                    }
+                                }
+                                (a, b) => {
+                                    return Err(EvaluateError::Custom(format!(
+                                        "A range cannot be created from type '{}' and type '{}'",
+                                        AspenType::from(a),
+                                        AspenType::from(b)
+                                    )));
+                                }
+                            },
+                            _ => {
+                                return Err(EvaluateError::Custom(format!(
+                                    "Only arrays can be spread, '{}' is not a valid array",
+                                    id
+                                )))
+                            }
+                        },
+                        e => args.push(self.evaluate_expr(e)?),
+                    }
+                }
+
+                Ok(AspenValue::Array(args))
             }
             _ => todo!(),
         }
@@ -186,7 +271,7 @@ impl<'a> AspenTable<'a> {
 
         match variables.len() {
             1 => {
-                self.insert_value(variables[0], true_value);
+                self.insert_value(variables[0], true_value)?;
             }
             _ => todo!(),
         }

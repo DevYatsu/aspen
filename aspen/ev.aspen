@@ -1,0 +1,6 @@
+@Rng_array rng {
+    >> [...rng]
+}
+
+
+let val     input("how are u? ")

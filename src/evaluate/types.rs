@@ -33,6 +33,7 @@ impl fmt::Display for AspenType {
             AspenType::Range => write!(f, "Range"),
             AspenType::Func => write!(f, "Func"),
             AspenType::Nil => write!(f, "Nil"),
+            AspenType::Func => write!(f, "Func"),
         }
     }
 }
@@ -49,6 +50,7 @@ impl<'a> From<AspenValue<'a>> for AspenType {
             AspenValue::Object(_) => AspenType::Object,
             AspenValue::Range { .. } => AspenType::Range,
             AspenValue::Func(_) => AspenType::Func,
+            AspenValue::RustBindFn { .. } => AspenType::Func,
         }
     }
 }
@@ -65,6 +67,7 @@ impl<'a, T: AsRef<AspenValue<'a>>> From<T> for AspenType {
             AspenValue::Object(_) => AspenType::Object,
             AspenValue::Range { .. } => AspenType::Range,
             AspenValue::Func(_) => AspenType::Func,
+            AspenValue::RustBindFn { .. } => AspenType::Func,
         }
     }
 }

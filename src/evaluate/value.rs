@@ -1,6 +1,7 @@
-use super::func::AspenFn;
+use super::{func::AspenFn, EvaluateResult};
 use hashbrown::HashMap;
-use rug::{float::OrdFloat, Integer};
+use rug::{float::OrdFloat, Float, Integer};
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AspenValue<'a> {
@@ -21,18 +22,21 @@ pub enum AspenValue<'a> {
     },
 
     Func(AspenFn<'a>),
-}
 
-use std::fmt;
+    RustBindFn {
+        name: &'a str,
+        code: fn(args: Vec<AspenValue<'a>>) -> EvaluateResult<AspenValue<'a>>,
+    },
+}
 
 impl<'a> fmt::Display for AspenValue<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AspenValue::Nil => write!(f, "nil"),
-            AspenValue::Str(s) => write!(f, "\"{}\"", s),
+            AspenValue::Str(s) => write!(f, "{}", s),
             AspenValue::Bool(b) => write!(f, "{}", b),
-            AspenValue::Int(i) => write!(f, "{}", i),
-            AspenValue::Float(fl) => write!(f, "{:?}", fl),
+            AspenValue::Int(i) => write!(f, "{}", i.to_string()),
+            AspenValue::Float(fl) => write!(f, "{}", Float::from(fl.to_owned()).to_string()),
             AspenValue::Array(arr) => {
                 write!(f, "[")?;
                 for (i, v) in arr.iter().enumerate() {
@@ -61,6 +65,7 @@ impl<'a> fmt::Display for AspenValue<'a> {
                 Ok(())
             }
             AspenValue::Func(func) => write!(f, "Func<{}>", func.name),
+            AspenValue::RustBindFn { name, .. } => write!(f, "RustFunc<{}>", name),
         }
     }
 }

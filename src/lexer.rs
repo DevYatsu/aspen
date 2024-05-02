@@ -79,7 +79,7 @@ pub enum Token<'a> {
     #[regex("[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice())]
     Identifier(&'a str),
 
-    #[regex(r#""([^"\\]|\\["\\bnfrt]|\\u\{[a-fA-F0-9]+})*""#, |lex| lex.slice())]
+    #[regex(r#""([^"\\]|\\["\\bnfrt]|\\u\{[a-fA-F0-9]+})*""#, |lex| let raw=lex.slice();&raw[1..raw.len()-1])]
     String(&'a str),
 
     #[regex("true|false", |lex| lex.slice() == "true")]
