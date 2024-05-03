@@ -759,6 +759,9 @@ impl<'s> Expr<'s> {
                     Token::OpenParen => Expr::modify_into_fn_call(parser, &mut base_expr)?,
                     Token::OpenBracket => Expr::modify_into_array_indexing(parser, &mut base_expr)?,
                     Token::Dot => Expr::modify_into_obj_indexing(parser, &mut base_expr)?,
+                    Token::PropagationOperator => {
+                        Expr::modify_into_error_propagation(parser, &mut base_expr)?
+                    }
                     Token::StringSeparator => {
                         Expr::modify_into_string_concatenation(parser, &mut base_expr)?
                     }
