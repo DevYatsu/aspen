@@ -7,6 +7,7 @@ let val     input("how are u? ")?
 // let val  input("how are u? ")
 // if val.is_error() {
 //    print(val)
+//    return
 // }
 
 
