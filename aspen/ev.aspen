@@ -3,6 +3,12 @@
 }
 
 let val     input("how are u? ")?
+// Same as:
+// let val  input("how are u? ")
+// if val.is_error() {
+//    print(val)
+// }
+
 
 @coerce_string value {
     if type(value) != "String" {

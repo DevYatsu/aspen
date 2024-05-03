@@ -77,6 +77,12 @@ impl<'s> Func<'s> {
                         Expr::modify_into_array_indexing(parser, expr)?;
                     }
                 }
+                Token::PropagationOperator if !awaits_arg => {
+                    // condition is sure to be true
+                    if let Some(expr) = args.last_mut() {
+                        Expr::modify_into_error_propagation(parser, expr)?;
+                    }
+                }
                 Token::OpenParen if !awaits_arg => {
                     // condition is sure to be true
                     if let Some(expr) = args.last_mut() {

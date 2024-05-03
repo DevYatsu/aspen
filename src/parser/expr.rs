@@ -122,7 +122,8 @@ impl<'s> Expr<'s> {
             | Expr::FuncCall { .. }
             | Expr::ObjIndexing { .. }
             | Expr::ArrayIndexing { .. }
-            | Expr::Parenthesized(_) => {
+            | Expr::Parenthesized(_)
+            | Expr::PropagatedFailible(_) => {
                 *base_expr = Box::new(Expr::FuncCall {
                     callee: base_expr.clone(),
                     args,
@@ -163,7 +164,8 @@ impl<'s> Expr<'s> {
                 | Expr::FuncCall { .. }
                 | Expr::ObjIndexing { .. }
                 | Expr::ArrayIndexing { .. }
-                | Expr::Parenthesized(_) => {
+                | Expr::Parenthesized(_)
+                | Expr::PropagatedFailible(_) => {
                     *base_expr = Box::new(Expr::Assign {
                         target: target.clone(),
                         operator: operator.to_owned(),
@@ -203,17 +205,10 @@ impl<'s> Expr<'s> {
 
     /// Function to call after a '?' is consumed when the expression is expected to be a failible expression.
     pub fn modify_into_error_propagation(
-        parser: &mut AspenParser<'s>,
+        _parser: &mut AspenParser<'s>,
         base_expr: &mut Box<Expr<'s>>,
     ) -> AspenResult<()> {
         match base_expr.as_mut() {
-            Expr::Id(_)
-            | Expr::FuncCall { .. }
-            | Expr::ObjIndexing { .. }
-            | Expr::ArrayIndexing { .. }
-            | Expr::Parenthesized(_) => {
-                *base_expr = Box::new(Expr::PropagatedFailible(base_expr.clone()));
-            }
             Expr::Binary { rhs, .. } => {
                 rhs.add_error_propagation_to_most_rhs();
             }
@@ -239,17 +234,6 @@ impl<'s> Expr<'s> {
                 Expr::Binary { rhs, .. } => {
                     rhs.add_error_propagation_to_most_rhs();
                 }
-                Expr::Id(_)
-                | Expr::FuncCall { .. }
-                | Expr::ObjIndexing { .. }
-                | Expr::ArrayIndexing { .. }
-                | Expr::Parenthesized(_) => {
-                    *base_expr = Box::new(Expr::Assign {
-                        target: target.clone(),
-                        operator: operator.to_owned(),
-                        value: Box::new(Expr::PropagatedFailible(value.clone())),
-                    });
-                }
                 Expr::Range {
                     ref mut end,
                     ref mut step,
@@ -264,9 +248,17 @@ impl<'s> Expr<'s> {
                         }
                     };
                 }
-                _ => return Err(AspenError::unknown(parser, "token '?' found".to_owned())),
+                _ => {
+                    *base_expr = Box::new(Expr::Assign {
+                        target: target.clone(),
+                        operator: operator.to_owned(),
+                        value: Box::new(Expr::PropagatedFailible(value.clone())),
+                    });
+                }
             },
-            _ => return Err(AspenError::unknown(parser, "token '?' found".to_owned())),
+            _ => {
+                *base_expr = Box::new(Expr::PropagatedFailible(base_expr.clone()));
+            }
         };
 
         Ok(())
@@ -284,7 +276,8 @@ impl<'s> Expr<'s> {
             | Expr::ObjIndexing { .. }
             | Expr::ArrayIndexing { .. }
             | Expr::Parenthesized(_)
-            | Expr::Value(Value::Str(_)) => {
+            | Expr::Value(Value::Str(_))
+            | Expr::PropagatedFailible(_) => {
                 *base_expr = Box::new(Expr::ArrayIndexing {
                     indexed: base_expr.clone(),
                     indexer: expr,
@@ -322,7 +315,8 @@ impl<'s> Expr<'s> {
                 | Expr::ObjIndexing { .. }
                 | Expr::ArrayIndexing { .. }
                 | Expr::Parenthesized(_)
-                | Expr::Value(Value::Str(_)) => {
+                | Expr::Value(Value::Str(_))
+                | Expr::PropagatedFailible(_) => {
                     *base_expr = Box::new(Expr::Assign {
                         target: target.clone(),
                         operator: operator.clone(),
@@ -387,7 +381,8 @@ impl<'s> Expr<'s> {
             | Expr::FuncCall { .. }
             | Expr::ObjIndexing { .. }
             | Expr::ArrayIndexing { .. }
-            | Expr::Parenthesized(_) => {
+            | Expr::Parenthesized(_)
+            | Expr::PropagatedFailible(_) => {
                 *base_expr = Box::new(Expr::ObjIndexing {
                     indexed: base_expr.clone(),
                     indexer: expr,
@@ -425,7 +420,8 @@ impl<'s> Expr<'s> {
                 | Expr::FuncCall { .. }
                 | Expr::ObjIndexing { .. }
                 | Expr::ArrayIndexing { .. }
-                | Expr::Parenthesized(_) => {
+                | Expr::Parenthesized(_)
+                | Expr::PropagatedFailible(_) => {
                     *base_expr = Box::new(Expr::Assign {
                         target: target.clone(),
                         operator: operator.clone(),
@@ -477,7 +473,8 @@ impl<'s> Expr<'s> {
             | Expr::FuncCall { .. }
             | Expr::ObjIndexing { .. }
             | Expr::ArrayIndexing { .. }
-            | Expr::Parenthesized(_) => {
+            | Expr::Parenthesized(_)
+            | Expr::PropagatedFailible(_) => {
                 *base_expr = Box::new(Expr::StringConcatenation {
                     left: base_expr.clone(),
                     right: expr,
@@ -501,7 +498,8 @@ impl<'s> Expr<'s> {
                 | Expr::FuncCall { .. }
                 | Expr::ObjIndexing { .. }
                 | Expr::ArrayIndexing { .. }
-                | Expr::Parenthesized(_) => {
+                | Expr::Parenthesized(_)
+                | Expr::PropagatedFailible(_) => {
                     *base_expr = Box::new(Expr::Assign {
                         target: target.clone(),
                         operator: operator.clone(),
@@ -555,7 +553,8 @@ impl<'s> Expr<'s> {
             | Expr::Value(_)
             | Expr::Parenthesized(_)
             | Expr::ObjIndexing { .. }
-            | Expr::ArrayIndexing { .. } => {
+            | Expr::ArrayIndexing { .. }
+            | Expr::PropagatedFailible(_) => {
                 *base_expr = Box::new(Expr::Range {
                     start: base_expr.clone(),
                     end: Box::new(second_expr),
@@ -592,7 +591,8 @@ impl<'s> Expr<'s> {
                 | Expr::Value(_)
                 | Expr::Parenthesized(_)
                 | Expr::ObjIndexing { .. }
-                | Expr::ArrayIndexing { .. } => {
+                | Expr::ArrayIndexing { .. }
+                | Expr::PropagatedFailible(_) => {
                     *base_expr = Box::new(Expr::Assign {
                         target: target.clone(),
                         operator: operator.clone(),
@@ -698,31 +698,13 @@ impl<'s> Expr<'s> {
                     .into();
                 }
             },
-            Expr::Id(_)
-            | Expr::FuncCall { .. }
-            | Expr::Value(_)
-            | Expr::Parenthesized(_)
-            | Expr::ObjIndexing { .. }
-            | Expr::ArrayIndexing { .. } => {
+            _ => {
                 *base_expr = Expr::Binary {
                     lhs: base_expr.clone(),
                     operator: bop,
                     rhs: Box::new(right_expr),
                 }
                 .into();
-            }
-            _ => {
-                return Err(AspenError::unknown(
-                    parser,
-                    format!(
-                        "token '{}', cannot {} {:?} {:?} {}",
-                        bop,
-                        bop.get_verb(),
-                        base_expr,
-                        right_expr,
-                        bop.get_proposition(),
-                    ),
-                ))
             }
         };
 
@@ -792,6 +774,7 @@ impl<'s> Expr<'s> {
 ///
 /// **NOTE: We assume "[" was already consumed!**
 fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>>>> {
+    // we could simplify this function using Expr::parser_until, maybe in the future ?
     let mut arr = Vec::new();
     let mut awaits_comma = false;
 
@@ -857,6 +840,7 @@ fn parse_array<'s>(parser: &mut AspenParser<'s>) -> AspenResult<Vec<Box<Expr<'s>
 ///
 /// **NOTE: We assume "{" was already consumed!**
 fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, Box<Expr<'s>>>> {
+    // we could simplify this function using Expr::parser_until, maybe in the future ?
     let mut hash = HashMap::new();
     let mut key = None;
     let mut value = None;
@@ -890,6 +874,11 @@ fn parse_obj<'s>(parser: &mut AspenParser<'s>) -> AspenResult<HashMap<&'s str, B
             Token::OpenParen if value.is_some() => {
                 let mut val = value.take().unwrap();
                 Expr::modify_into_fn_call(parser, &mut val)?;
+                value = Some(val);
+            }
+            Token::PropagationOperator if value.is_some() => {
+                let mut val = value.take().unwrap();
+                Expr::modify_into_error_propagation(parser, &mut val)?;
                 value = Some(val);
             }
             Token::OpenBracket if key.is_some() => {
