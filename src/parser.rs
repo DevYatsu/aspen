@@ -359,15 +359,15 @@ pub fn parse_block<'s>(
                 if let Some(stmt) = statements.last_mut() {
                     match stmt.as_mut() {
                         Statement::Expr(base_expr) => {
-                            Expr::modify_into_fn_call(parser, base_expr)?;
+                            Expr::modify_into_error_propagation(parser, base_expr)?;
                             continue;
                         }
                         Statement::Var(Var { value, .. }) => {
-                            Expr::modify_into_fn_call(parser, value)?;
+                            Expr::modify_into_error_propagation(parser, value)?;
                             continue;
                         }
                         Statement::Return(Return(returned_expr)) => {
-                            Expr::modify_into_fn_call(parser, returned_expr)?;
+                            Expr::modify_into_error_propagation(parser, returned_expr)?;
                             continue;
                         }
                         _ => (),

@@ -6,7 +6,7 @@ let val     input("how are u? ")?
 
 @coerce_string value {
     if type(value) != "String" {
-        return Err("Value must be of type \"String\"!")
+        return Err("Value must be of type 'String'!")
     }
 
     >> value
