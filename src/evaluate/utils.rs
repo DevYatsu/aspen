@@ -1,7 +1,6 @@
 use super::{error::EvaluateError, value::AspenValue, EvaluateResult};
-use rug::Integer;
 
-pub fn extract_range<'a>(value: AspenValue<'a>) -> EvaluateResult<(usize, usize, usize)> {
+pub fn extract_range<'a>(value: AspenValue<'a>) -> EvaluateResult<(usize, usize, Option<usize>)> {
     match value {
         AspenValue::Range { start, end, step } => {
             let start = match *start {
@@ -24,14 +23,20 @@ pub fn extract_range<'a>(value: AspenValue<'a>) -> EvaluateResult<(usize, usize,
 
             let step = match step {
                 Some(val) => match *val {
-                    AspenValue::Int(i) => i,
+                    AspenValue::Int(i) => {
+                        if i == 1 {
+                            None
+                        } else {
+                            Some(i)
+                        }
+                    }
                     _ => {
                         return Err(EvaluateError::Custom(
                             "Step of the range must be an integer".to_string(),
                         ))
                     }
                 },
-                None => Integer::from(1),
+                None => None,
             };
 
             if start >= end {
@@ -52,17 +57,19 @@ pub fn extract_range<'a>(value: AspenValue<'a>) -> EvaluateResult<(usize, usize,
                 )));
             }
 
-            if step < usize::MIN {
-                return Err(EvaluateError::Custom(format!(
-                    "A range step cannot be less than {}!!",
-                    usize::MIN
-                )));
-            }
-            if step > usize::MAX {
-                return Err(EvaluateError::Custom(format!(
-                    "A range step cannot be more than {}!!",
-                    usize::MAX
-                )));
+            if let Some(step) = &step {
+                if step < &usize::MIN {
+                    return Err(EvaluateError::Custom(format!(
+                        "A range step cannot be less than {}!!",
+                        usize::MIN
+                    )));
+                }
+                if step > &usize::MAX {
+                    return Err(EvaluateError::Custom(format!(
+                        "A range step cannot be more than {}!!",
+                        usize::MAX
+                    )));
+                }
             }
 
             let standart_deviation = end.to_owned() - start.to_owned();
@@ -76,7 +83,7 @@ pub fn extract_range<'a>(value: AspenValue<'a>) -> EvaluateResult<(usize, usize,
 
             let start = start.to_usize().unwrap();
             let end = end.to_usize().unwrap();
-            let step = step.to_usize().unwrap();
+            let step = step.map(|i| i.to_usize().unwrap());
 
             Ok((start, end, step))
         }

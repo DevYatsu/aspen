@@ -3,6 +3,11 @@ use std::{error::Error, fmt};
 
 #[derive(Debug)]
 pub enum EvaluateError {
+    ProgramEndErrorPropagated,
+
+    UnknownModule(String),
+    CannotUseDestructuring,
+
     UndefinedIdentifier(String),
     IdentifierAlreadyUsed(String),
 
@@ -30,6 +35,11 @@ impl<'a> Error for EvaluateError {}
 impl fmt::Display for EvaluateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            EvaluateError::ProgramEndErrorPropagated => write!(f, ""),
+            EvaluateError::UnknownModule(name) => write!(f, "Unknown module '{}'", name),
+            EvaluateError::CannotUseDestructuring => {
+                write!(f, "Destructuring can only be used on arrays and objects")
+            }
             EvaluateError::Custom(s) => write!(f, "{}", s),
             EvaluateError::IdentifierAlreadyUsed(name) => {
                 write!(f, "Identifier already in use: '{}'", name)

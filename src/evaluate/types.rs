@@ -14,6 +14,8 @@ pub enum AspenType {
 
     Func,
     Nil,
+
+    Err,
 }
 
 use std::fmt;
@@ -34,6 +36,7 @@ impl fmt::Display for AspenType {
             AspenType::Func => write!(f, "Func"),
             AspenType::Nil => write!(f, "Nil"),
             AspenType::Func => write!(f, "Func"),
+            AspenType::Err => write!(f, "Err"),
         }
     }
 }
@@ -51,6 +54,7 @@ impl<'a> From<AspenValue<'a>> for AspenType {
             AspenValue::Range { .. } => AspenType::Range,
             AspenValue::Func(_) => AspenType::Func,
             AspenValue::RustBindFn { .. } => AspenType::Func,
+            AspenValue::Error(_) => AspenType::Err,
         }
     }
 }
@@ -68,6 +72,7 @@ impl<'a, T: AsRef<AspenValue<'a>>> From<T> for AspenType {
             AspenValue::Range { .. } => AspenType::Range,
             AspenValue::Func(_) => AspenType::Func,
             AspenValue::RustBindFn { .. } => AspenType::Func,
+            AspenValue::Error(_) => AspenType::Err,
         }
     }
 }

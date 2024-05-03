@@ -72,3 +72,35 @@ impl<'a> fmt::Display for AspenValue<'a> {
         }
     }
 }
+
+impl<'a> From<String> for AspenValue<'a> {
+    fn from(value: String) -> Self {
+        AspenValue::Str(value)
+    }
+}
+impl<'a> From<Integer> for AspenValue<'a> {
+    fn from(value: Integer) -> Self {
+        AspenValue::Int(value)
+    }
+}
+impl<'a> From<()> for AspenValue<'a> {
+    fn from(value: ()) -> Self {
+        AspenValue::Nil
+    }
+}
+
+impl<'a> From<Float> for AspenValue<'a> {
+    fn from(value: Float) -> Self {
+        AspenValue::Float(OrdFloat::from(value))
+    }
+}
+impl<'a> From<OrdFloat> for AspenValue<'a> {
+    fn from(value: OrdFloat) -> Self {
+        AspenValue::Float(value)
+    }
+}
+impl<'a> From<bool> for AspenValue<'a> {
+    fn from(value: bool) -> Self {
+        AspenValue::Bool(value)
+    }
+}

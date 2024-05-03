@@ -2,9 +2,16 @@ use self::{
     error::EvaluateError, func::AspenFn, globals::set_up_globals, types::AspenType,
     value::AspenValue,
 };
-use crate::parser::{
-    func::Func, operator::AssignOperator, return_stmt::Return, value::Value, var::Var, Container,
-    Expr, Statement,
+use crate::{
+    evaluate::import::import_module,
+    parser::{
+        func::Func,
+        operator::AssignOperator,
+        return_stmt::Return,
+        value::Value,
+        var::{Var, Variables},
+        Container, Expr, Statement,
+    },
 };
 use hashbrown::HashMap;
 use rug::Integer;
@@ -18,8 +25,14 @@ mod utils;
 mod value;
 
 #[derive(Debug, Clone)]
+pub enum ValueWrapper<'a> {
+    CurrentContext(AspenValue<'a>),
+    OtherContext(AspenValue<'a>),
+}
+
+#[derive(Debug, Clone)]
 pub struct AspenTable<'a> {
-    values: HashMap<&'a str, AspenValue<'a>>,
+    values: HashMap<&'a str, ValueWrapper<'a>>,
 }
 
 pub type EvaluateResult<T> = Result<T, EvaluateError>;
@@ -35,6 +48,16 @@ impl<'a> AspenTable<'a> {
         let mut values = HashMap::new();
         set_up_globals(&mut values);
         Self { values }
+    }
+
+    pub fn create_sub_ctx(&self) -> Self {
+        let mut new_table = self.clone();
+
+        for val in new_table.values.values_mut() {
+            val.change_to_sub()
+        }
+
+        new_table
     }
 
     pub fn evaluate_block(
@@ -94,6 +117,15 @@ impl<'a> AspenTable<'a> {
         let opt_value = self.values.get(name);
 
         match opt_value {
+            Some(value) => Ok(value.inside_value()),
+            None => Err(EvaluateError::UndefinedIdentifier(name.to_owned())),
+        }
+    }
+
+    pub fn get_wrapped_value(&self, name: &'a str) -> EvaluateResult<&ValueWrapper<'a>> {
+        let opt_value = self.values.get(name);
+
+        match opt_value {
             Some(value) => Ok(value),
             None => Err(EvaluateError::UndefinedIdentifier(name.to_owned())),
         }
@@ -103,13 +135,15 @@ impl<'a> AspenTable<'a> {
         let opt_value = self.values.get(name.as_str());
 
         match opt_value {
-            Some(value) => Ok(value.clone()),
+            Some(value) => Ok(value.inside_value().clone()),
             None => Err(EvaluateError::UndefinedIdentifier(name.to_owned())),
         }
     }
 
     pub fn is_identifier_used(&self, ident: &'a str) -> bool {
-        self.get_ref_value(ident).is_ok()
+        self.get_wrapped_value(ident)
+            .map(|v| v.is_current_ctx())
+            .unwrap_or(false)
     }
 
     pub fn evaluate_expr(&self, expr: Expr<'a>) -> EvaluateResult<AspenValue<'a>> {
@@ -119,9 +153,15 @@ impl<'a> AspenTable<'a> {
                 let value = self.get_ref_value(name)?.to_owned();
                 Ok(value)
             }
-            Expr::PropagatedFailible(expr) => {}
+            Expr::PropagatedFailible(expr) => match self.evaluate_expr(*expr)? {
+                AspenValue::Error(x) => {
+                    print!("{}", x);
+                    Err(EvaluateError::ProgramEndErrorPropagated)
+                }
+                x => Ok(x),
+            },
             Expr::Import(name) => {
-                todo!()
+                import_module(name).ok_or_else(|| EvaluateError::UnknownModule(name.to_owned()))
             }
             Expr::FuncCall { callee, args } => {
                 let func_name = match *callee {
@@ -139,11 +179,8 @@ impl<'a> AspenTable<'a> {
                 let args = args_result?;
 
                 match func {
-                    AspenValue::Func(f) => return Ok(f.call(args)?),
-                    AspenValue::RustBindFn { code, name } => {
-                        let r = code(args)?;
-                        return Ok(r);
-                    }
+                    AspenValue::Func(f) => return Ok(f.call(self, args)?),
+                    AspenValue::RustBindFn { code, name } => return Ok(code(args)?),
                     _ => return Err(EvaluateError::IdentifierIsNotValidFn(func_name.to_owned())),
                 }
             }
@@ -249,11 +286,11 @@ impl<'a> AspenTable<'a> {
 
         self.values.insert(
             name,
-            AspenValue::Func(AspenFn {
+            ValueWrapper::CurrentContext(AspenValue::Func(AspenFn {
                 args: arguments,
                 body,
                 name,
-            }),
+            })),
         );
 
         Ok(())
@@ -262,26 +299,70 @@ impl<'a> AspenTable<'a> {
     pub fn insert_var(&mut self, v: Var<'a>) -> EvaluateResult<()> {
         let Var { variables, value } = v;
 
-        for name in variables.iter() {
-            if self.is_identifier_used(name) {
-                return Err(EvaluateError::IdentifierAlreadyUsed(name.to_string()));
-            }
-        }
+        let true_value = Box::new(self.evaluate_expr(*value)?);
+        let vars_len = variables.len();
 
-        let true_value = self.evaluate_expr(*value)?;
-
-        match variables.len() {
-            1 => {
-                self.insert_value(variables[0], true_value)?;
+        match variables {
+            Variables::Unique(name) => {
+                if self.is_identifier_used(name) {
+                    return Err(EvaluateError::IdentifierAlreadyUsed(name.to_string()));
+                }
+                self.insert_value(name, *true_value)?;
             }
-            _ => todo!(),
-        }
+            Variables::Destructuring(names) => {
+                for (i, name) in names.into_iter().enumerate() {
+                    if self.is_identifier_used(name) {
+                        return Err(EvaluateError::IdentifierAlreadyUsed(name.to_string()));
+                    }
+
+                    match *(true_value.clone()) {
+                        AspenValue::Object(obj) => {
+                            if let Some(v) = obj.get(name) {
+                                self.insert_value(name, v.to_owned())?;
+                            } else {
+                                return Err(EvaluateError::Custom(format!(
+                                    "Object does not have a '{}' property",
+                                    name
+                                )));
+                            }
+                        }
+                        AspenValue::Array(mut arr) => {
+                            if let Some(v) = arr.get(i) {
+                                if i == vars_len - 1 {
+                                    let new_collection = arr.split_off(i);
+                                    if new_collection.len() == 1 {
+                                        self.insert_value(name, new_collection[0].to_owned())?;
+                                    } else {
+                                        self.insert_value(name, AspenValue::Array(new_collection))?;
+                                    }
+                                } else {
+                                    self.insert_value(name, v.to_owned())?;
+                                }
+                            } else {
+                                return Err(EvaluateError::Custom(format!(
+                                    "Array does not have anything at index '{}'",
+                                    i
+                                )));
+                            }
+                        }
+                        value => {
+                            if vars_len != 0 {
+                                return Err(EvaluateError::CannotUseDestructuring);
+                            }
+                            self.insert_value(name, value)?;
+                        }
+                    }
+                }
+            }
+        };
 
         Ok(())
     }
 
     pub fn update_value(&mut self, name: &'a str, value: AspenValue<'a>) -> EvaluateResult<()> {
-        let previous_value = self.values.insert(name, value);
+        let mut previous_value = self
+            .values
+            .insert(name, ValueWrapper::CurrentContext(value));
 
         if previous_value.is_none() {
             return Err(EvaluateError::Custom(format!(
@@ -290,7 +371,7 @@ impl<'a> AspenTable<'a> {
             )));
         }
 
-        match previous_value.unwrap() {
+        match previous_value.take().unwrap().take() {
             AspenValue::Func(_) => {
                 return Err(EvaluateError::Custom(format!(
                     "Cannot assign value to function '{}'",
@@ -308,7 +389,8 @@ impl<'a> AspenTable<'a> {
             return Err(EvaluateError::IdentifierAlreadyUsed(name.to_string()));
         }
 
-        self.values.insert(name, value);
+        self.values
+            .insert(name, ValueWrapper::CurrentContext(value));
 
         Ok(())
     }
@@ -323,5 +405,34 @@ impl<'a> From<Value<'a>> for AspenValue<'a> {
             Value::Bool(b) => AspenValue::Bool(b),
             Value::Float(f) => AspenValue::Float(f),
         }
+    }
+}
+
+impl<'a> ValueWrapper<'a> {
+    pub fn inside_value(&self) -> &AspenValue<'a> {
+        match self {
+            Self::OtherContext(c) => c,
+            Self::CurrentContext(c) => c,
+        }
+    }
+    pub fn take(self) -> AspenValue<'a> {
+        match self {
+            Self::OtherContext(c) => c,
+            Self::CurrentContext(c) => c,
+        }
+    }
+
+    pub fn is_current_ctx(&self) -> bool {
+        match self {
+            Self::OtherContext(_) => false,
+            Self::CurrentContext(_) => true,
+        }
+    }
+
+    pub fn change_to_sub(&mut self) {
+        match self {
+            Self::OtherContext(_) => (),
+            Self::CurrentContext(v) => *self = Self::CurrentContext(v.to_owned()),
+        };
     }
 }

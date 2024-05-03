@@ -7,8 +7,14 @@ use crate::parser::{AspenParser, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Var<'s> {
-    pub variables: Vec<&'s str>,
+    pub variables: Variables<'s>,
     pub value: Box<Expr<'s>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Variables<'s> {
+    Unique(&'s str),
+    Destructuring(Vec<&'s str>),
 }
 
 impl<'s> Var<'s> {
@@ -22,11 +28,10 @@ impl<'s> Var<'s> {
     }
 
     pub fn parse_after_comma(parser: &mut AspenParser<'s>) -> AspenResult<Statement<'s>> {
-        let mut variables = vec![];
-
-        match next_jump_multispace(parser)? {
-            Token::Identifier(name) => variables.push(name),
+        let mut variables = match next_jump_multispace(parser)? {
+            Token::Identifier(name) => Variables::Unique(name),
             Token::OpenParen => {
+                let mut variables = vec![];
                 match next_jump_multispace(parser)? {
                     Token::Identifier(name) => variables.push(name),
                     _ => return Err(AspenError::expected(parser, "an identifier".to_owned())),
@@ -37,7 +42,7 @@ impl<'s> Var<'s> {
                         Token::Comma => {
                             match next_jump_multispace(parser)? {
                                 Token::Identifier(name) => variables.push(name),
-                                Token::CloseBracket => break,
+                                Token::CloseParen => break,
                                 _ => {
                                     return Err(AspenError::expected(
                                         parser,
@@ -50,6 +55,8 @@ impl<'s> Var<'s> {
                         _ => return Err(AspenError::expected(parser, "an identifier".to_owned())),
                     }
                 }
+
+                Variables::Destructuring(variables)
             }
             _ => {
                 return Err(AspenError::unknown(
@@ -66,3 +73,12 @@ impl<'s> Var<'s> {
 }
 
 crate::impl_from_for!(Var, Statement);
+
+impl<'s> Variables<'s> {
+    pub fn len(&self) -> usize {
+        match self {
+            Variables::Unique(_) => 1,
+            Variables::Destructuring(v) => v.len(),
+        }
+    }
+}

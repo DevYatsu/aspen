@@ -13,7 +13,11 @@ pub struct AspenFn<'a> {
 }
 
 impl<'a> AspenFn<'a> {
-    pub fn call(&self, args: Vec<AspenValue<'a>>) -> EvaluateResult<AspenValue<'a>> {
+    pub fn call(
+        &self,
+        base_ctx: &AspenTable<'a>,
+        args: Vec<AspenValue<'a>>,
+    ) -> EvaluateResult<AspenValue<'a>> {
         // there can only be one spread argument, it's ensured by the parser
         let minimum_num = self.args.iter().filter(|a| a.is_spread == false).count();
         let found_num = args.len();
@@ -34,7 +38,7 @@ impl<'a> AspenFn<'a> {
             });
         }
 
-        let mut ctx = self.init_ctx(args, has_spread_arg)?;
+        let mut ctx = self.init_ctx(base_ctx, args, has_spread_arg)?;
         let result = ctx.evaluate_block(self.body.statements())?;
 
         Ok(result)
@@ -42,10 +46,11 @@ impl<'a> AspenFn<'a> {
 
     fn init_ctx(
         &self,
+        base_ctx: &AspenTable<'a>,
         args: Vec<AspenValue<'a>>,
         has_spread_arg: bool,
     ) -> EvaluateResult<AspenTable<'a>> {
-        let mut fn_ctx = AspenTable::new();
+        let mut fn_ctx = base_ctx.create_sub_ctx();
 
         if has_spread_arg {
             for (i, arg) in self.args.iter().enumerate() {

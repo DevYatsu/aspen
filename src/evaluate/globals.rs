@@ -1,31 +1,31 @@
-use super::{value::AspenValue, EvaluateResult};
+use super::{value::AspenValue, EvaluateResult, ValueWrapper};
 use hashbrown::HashMap;
 
 // in here are all the global functions defined
 
-pub fn set_up_globals<'a>(hashmap: &mut HashMap<&'a str, AspenValue<'a>>) {
+pub fn set_up_globals<'a>(hashmap: &mut HashMap<&'a str, ValueWrapper<'a>>) {
     hashmap.insert(
         "print",
-        AspenValue::RustBindFn {
+        ValueWrapper::CurrentContext(AspenValue::RustBindFn {
             name: "print",
             code: print,
-        },
+        }),
     );
 
     hashmap.insert(
         "Err",
-        AspenValue::RustBindFn {
+        ValueWrapper::CurrentContext(AspenValue::RustBindFn {
             name: "Err",
             code: error,
-        },
+        }),
     );
 
     hashmap.insert(
         "Array",
-        AspenValue::RustBindFn {
+        ValueWrapper::CurrentContext(AspenValue::RustBindFn {
             name: "Array",
             code: array,
-        },
+        }),
     );
 }
 

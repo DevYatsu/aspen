@@ -2,27 +2,12 @@
     >> [...rng]
 }
 
-let val     input("how are u? ")?
-// Same as:
-// let val  input("how are u? ")
-// if val.is_error() {
-//    print(val)
-//    return
-// }
+let (input, read, append)  $import("io")
+let (random, shuffle, random_int)  $import("math")
 
+print(random())
+@r{>>random_int(0:100_000:1)}
+let random_numbers      [r(), r(), r(), r()]
 
-@coerce_string value {
-    if type(value) != "String" {
-        return Err("Value must be of type 'String'!")
-    }
-
-    >> value
-}
-
-@trim str {
-    let value   coerce_string(str)?
-
-    >> value.trim()
-}
-
-print(trim(val)?)
+print(random_numbers)
+print(shuffle(random_numbers))
