@@ -54,6 +54,7 @@ pub enum Expr<'a> {
     SpeadId(&'a str),
 
     Parenthesized(Box<Expr<'a>>),
+    PropagatedFailible(Box<Expr<'a>>),
 
     Assign {
         target: Box<Expr<'a>>,
@@ -349,6 +350,31 @@ pub fn parse_block<'s>(
 
                 let expr = Expr::parse_parenthesized(parser)?;
                 statements.push(Box::new(Statement::Expr(Box::new(expr))))
+            }
+            Token::PropagationOperator => {
+                if semi_colon_found {
+                    return Err(AspenError::unknown(parser, "token '?' found".to_owned()));
+                }
+
+                if let Some(stmt) = statements.last_mut() {
+                    match stmt.as_mut() {
+                        Statement::Expr(base_expr) => {
+                            Expr::modify_into_fn_call(parser, base_expr)?;
+                            continue;
+                        }
+                        Statement::Var(Var { value, .. }) => {
+                            Expr::modify_into_fn_call(parser, value)?;
+                            continue;
+                        }
+                        Statement::Return(Return(returned_expr)) => {
+                            Expr::modify_into_fn_call(parser, returned_expr)?;
+                            continue;
+                        }
+                        _ => (),
+                    };
+                }
+
+                return Err(AspenError::unknown(parser, "token '?' found".to_owned()));
             }
             Token::Range => {
                 if semi_colon_found {

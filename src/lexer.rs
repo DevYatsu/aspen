@@ -65,6 +65,8 @@ pub enum Token<'a> {
     Dot,
     #[token(":")]
     Range,
+    #[token("?")]
+    PropagationOperator,
 
     #[regex(r"//[^\n]*", |lex| let raw=lex.slice();raw[2..=raw.len()-1].trim())]
     LineComment(&'a str),

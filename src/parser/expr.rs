@@ -93,6 +93,13 @@ impl<'s> Expr<'s> {
             indexer,
         };
     }
+    fn add_error_propagation_to_most_rhs(&mut self) {
+        let mut expr = self;
+        while let Expr::Binary { rhs, .. } = expr {
+            expr = rhs;
+        }
+        *expr = Expr::PropagatedFailible(Box::new(expr.clone()));
+    }
     fn add_string_concatenation_to_most_rhs(&mut self, right: Box<Expr<'s>>) {
         let mut expr = self;
         while let Expr::Binary { rhs, .. } = expr {
@@ -132,7 +139,7 @@ impl<'s> Expr<'s> {
                 match step.is_some() {
                     true => {
                         *step = Some(Box::new(Expr::FuncCall {
-                            callee: step.clone().unwrap(),
+                            callee: step.take().unwrap(),
                             args,
                         }));
                     }
@@ -174,7 +181,7 @@ impl<'s> Expr<'s> {
                     match step.is_some() {
                         true => {
                             *step = Some(Box::new(Expr::FuncCall {
-                                callee: step.clone().unwrap(),
+                                callee: step.take().unwrap(),
                                 args,
                             }));
                         }
@@ -194,6 +201,77 @@ impl<'s> Expr<'s> {
         Ok(())
     }
 
+    /// Function to call after a '?' is consumed when the expression is expected to be a failible expression.
+    pub fn modify_into_error_propagation(
+        parser: &mut AspenParser<'s>,
+        base_expr: &mut Box<Expr<'s>>,
+    ) -> AspenResult<()> {
+        match base_expr.as_mut() {
+            Expr::Id(_)
+            | Expr::FuncCall { .. }
+            | Expr::ObjIndexing { .. }
+            | Expr::ArrayIndexing { .. }
+            | Expr::Parenthesized(_) => {
+                *base_expr = Box::new(Expr::PropagatedFailible(base_expr.clone()));
+            }
+            Expr::Binary { rhs, .. } => {
+                rhs.add_error_propagation_to_most_rhs();
+            }
+            Expr::Range {
+                ref mut end,
+                ref mut step,
+                ..
+            } => {
+                match step.is_some() {
+                    true => {
+                        *step = Some(Box::new(Expr::PropagatedFailible(step.take().unwrap())));
+                    }
+                    false => {
+                        *end = Box::new(Expr::PropagatedFailible(end.clone()));
+                    }
+                };
+            }
+            Expr::Assign {
+                ref mut value,
+                ref target,
+                ref operator,
+            } => match value.as_mut() {
+                Expr::Binary { rhs, .. } => {
+                    rhs.add_error_propagation_to_most_rhs();
+                }
+                Expr::Id(_)
+                | Expr::FuncCall { .. }
+                | Expr::ObjIndexing { .. }
+                | Expr::ArrayIndexing { .. }
+                | Expr::Parenthesized(_) => {
+                    *base_expr = Box::new(Expr::Assign {
+                        target: target.clone(),
+                        operator: operator.to_owned(),
+                        value: Box::new(Expr::PropagatedFailible(value.clone())),
+                    });
+                }
+                Expr::Range {
+                    ref mut end,
+                    ref mut step,
+                    ..
+                } => {
+                    match step.is_some() {
+                        true => {
+                            *step = Some(Box::new(Expr::PropagatedFailible(step.take().unwrap())));
+                        }
+                        false => {
+                            *end = Box::new(Expr::PropagatedFailible(end.clone()));
+                        }
+                    };
+                }
+                _ => return Err(AspenError::unknown(parser, "token '?' found".to_owned())),
+            },
+            _ => return Err(AspenError::unknown(parser, "token '?' found".to_owned())),
+        };
+
+        Ok(())
+    }
+
     /// Function to call after a '[' is consumed when the expression is expected to be an array indexing.
     pub fn modify_into_array_indexing(
         parser: &mut AspenParser<'s>,
@@ -205,7 +283,8 @@ impl<'s> Expr<'s> {
             | Expr::FuncCall { .. }
             | Expr::ObjIndexing { .. }
             | Expr::ArrayIndexing { .. }
-            | Expr::Parenthesized(_) => {
+            | Expr::Parenthesized(_)
+            | Expr::Value(Value::Str(_)) => {
                 *base_expr = Box::new(Expr::ArrayIndexing {
                     indexed: base_expr.clone(),
                     indexer: expr,
@@ -219,7 +298,7 @@ impl<'s> Expr<'s> {
                 match step.is_some() {
                     true => {
                         *step = Some(Box::new(Expr::ArrayIndexing {
-                            indexed: step.clone().unwrap(),
+                            indexed: step.take().unwrap(),
                             indexer: expr,
                         }));
                     }
@@ -242,7 +321,8 @@ impl<'s> Expr<'s> {
                 | Expr::FuncCall { .. }
                 | Expr::ObjIndexing { .. }
                 | Expr::ArrayIndexing { .. }
-                | Expr::Parenthesized(_) => {
+                | Expr::Parenthesized(_)
+                | Expr::Value(Value::Str(_)) => {
                     *base_expr = Box::new(Expr::Assign {
                         target: target.clone(),
                         operator: operator.clone(),
@@ -260,7 +340,7 @@ impl<'s> Expr<'s> {
                     match step.is_some() {
                         true => {
                             *step = Some(Box::new(Expr::ArrayIndexing {
-                                indexed: step.clone().unwrap(),
+                                indexed: step.take().unwrap(),
                                 indexer: expr,
                             }));
                         }
@@ -321,7 +401,7 @@ impl<'s> Expr<'s> {
                 match step.is_some() {
                     true => {
                         *step = Some(Box::new(Expr::ObjIndexing {
-                            indexed: step.clone().unwrap(),
+                            indexed: step.take().unwrap(),
                             indexer: expr,
                         }));
                     }
@@ -363,7 +443,7 @@ impl<'s> Expr<'s> {
                     match step.is_some() {
                         true => {
                             *step = Some(Box::new(Expr::ObjIndexing {
-                                indexed: step.clone().unwrap(),
+                                indexed: step.take().unwrap(),
                                 indexer: expr,
                             }));
                         }
@@ -958,6 +1038,9 @@ impl<'a> fmt::Display for Expr<'a> {
             }
             Expr::StringConcatenation { left, right } => {
                 write!(f, "{}..{}", left, right)
+            }
+            Expr::PropagatedFailible(expr) => {
+                write!(f, "{}?", expr)
             }
         }
     }
