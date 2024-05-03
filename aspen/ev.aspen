@@ -2,5 +2,20 @@
     >> [...rng]
 }
 
+let val     input("how are u? ")?
 
-let val     input("how are u? ")
+@coerce_string value {
+    if type(value) != "String" {
+        return Err("Value must be of type \"String\"!")
+    }
+
+    >> value
+}
+
+@trim str {
+    let value   coerce_string(str)?
+
+    >> value.trim()
+}
+
+print(trim(val)?)
