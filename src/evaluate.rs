@@ -169,6 +169,9 @@ impl<'a> AspenTable<'a> {
                     Expr::ObjIndexing { indexed, indexer } => {
                         todo!()
                     }
+                    Expr::ArrayIndexing { indexed, indexer } => {
+                        todo!()
+                    }
                     x => return Err(EvaluateError::OnlyFuncsCanBeCalled(x.to_string())),
                 };
 
@@ -227,6 +230,7 @@ impl<'a> AspenTable<'a> {
                             AspenValue::Array(vals) => args.extend(vals),
                             AspenValue::Range { start, end, step } => match (*start, *end) {
                                 (AspenValue::Int(i), AspenValue::Int(i2)) => {
+                                    //need to limit values like in 'extract_args'
                                     let vals: Vec<_> = (i.to_i128().unwrap()
                                         ..=i2.to_i128().unwrap())
                                         .map(|i| AspenValue::Int(Integer::from(i)))
