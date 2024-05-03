@@ -1,6 +1,4 @@
-use std::io::{stdout, Write};
-
-use super::{error::EvaluateError, value::AspenValue, EvaluateResult};
+use super::{value::AspenValue, EvaluateResult};
 use hashbrown::HashMap;
 
 // in here are all the global functions defined
@@ -15,18 +13,18 @@ pub fn set_up_globals<'a>(hashmap: &mut HashMap<&'a str, AspenValue<'a>>) {
     );
 
     hashmap.insert(
-        "Array",
+        "Err",
         AspenValue::RustBindFn {
-            name: "Array",
-            code: array,
+            name: "Err",
+            code: error,
         },
     );
 
     hashmap.insert(
-        "input",
+        "Array",
         AspenValue::RustBindFn {
-            name: "input",
-            code: input,
+            name: "Array",
+            code: array,
         },
     );
 }
@@ -45,26 +43,23 @@ pub fn print<'a>(args: Vec<AspenValue<'a>>) -> EvaluateResult<AspenValue<'a>> {
     Ok(AspenValue::Nil)
 }
 
-pub fn array<'a>(args: Vec<AspenValue<'a>>) -> EvaluateResult<AspenValue<'a>> {
-    Ok(AspenValue::Array(args))
-}
+// Function named 'Err'
+pub fn error<'a>(args: Vec<AspenValue<'a>>) -> EvaluateResult<AspenValue<'a>> {
+    let mut result = String::new();
 
-pub fn input<'a>(args: Vec<AspenValue<'a>>) -> EvaluateResult<AspenValue<'a>> {
-    let mut user_input = String::new();
+    for (i, arg) in args.iter().enumerate() {
+        result.push_str("{arg}");
 
-    if let Some(prompt) = args.get(0) {
-        match prompt {
-            AspenValue::Str(prompt_str) => print!("{}", prompt_str),
-            _ => return Err(EvaluateError::Custom("Invalid prompt".to_string())),
+        if i != args.len() - 1 {
+            result.push_str(", ")
         }
-        let _ = stdout().flush();
     }
 
-    std::io::stdin()
-        .read_line(&mut user_input)
-        .map_err(|err| EvaluateError::Custom(format!("Error reading input: {}", err)))?;
+    result.push_str("\n");
 
-    user_input.pop(); // Remove newline character
+    Ok(AspenValue::Error(result))
+}
 
-    Ok(AspenValue::Str(user_input))
+pub fn array<'a>(args: Vec<AspenValue<'a>>) -> EvaluateResult<AspenValue<'a>> {
+    Ok(AspenValue::Array(args))
 }

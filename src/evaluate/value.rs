@@ -9,6 +9,8 @@ pub enum AspenValue<'a> {
     Str(String),
     Bool(bool),
 
+    Error(String),
+
     Int(Integer),
     Float(OrdFloat),
 
@@ -37,6 +39,7 @@ impl<'a> fmt::Display for AspenValue<'a> {
             AspenValue::Bool(b) => write!(f, "{}", b),
             AspenValue::Int(i) => write!(f, "{}", i.to_string()),
             AspenValue::Float(fl) => write!(f, "{}", Float::from(fl.to_owned()).to_string()),
+            AspenValue::Error(s) => write!(f, "Err(\"{}\")", s),
             AspenValue::Array(arr) => {
                 write!(f, "[")?;
                 for (i, v) in arr.iter().enumerate() {

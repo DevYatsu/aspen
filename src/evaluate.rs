@@ -119,6 +119,7 @@ impl<'a> AspenTable<'a> {
                 let value = self.get_ref_value(name)?.to_owned();
                 Ok(value)
             }
+            Expr::PropagatedFailible(expr) => {}
             Expr::Import(name) => {
                 todo!()
             }
